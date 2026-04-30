@@ -19,7 +19,9 @@ def list_collections(db: Session = Depends(get_db)):
 
 @router.post("", response_model=CollectionOut, status_code=201)
 def create_collection(data: CollectionCreate, db: Session = Depends(get_db)):
-    collection = Collection(**data.model_dump())
+    values = data.model_dump()
+    values["provider"] = values.get("provider") or "openai"
+    collection = Collection(**values)
     db.add(collection)
     db.commit()
     db.refresh(collection)
@@ -42,6 +44,8 @@ def update_collection(collection_id: int, data: CollectionUpdate, db: Session = 
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Collection not found")
     for key, val in data.model_dump(exclude_unset=True).items():
+        if val is None or val == "":
+            continue
         setattr(collection, key, val)
     db.commit()
     db.refresh(collection)

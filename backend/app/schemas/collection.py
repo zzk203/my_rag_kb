@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class CollectionCreate(BaseModel):
     name: str
     description: str = ""
-    provider: str = "openai"
+    provider: Optional[str] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     llm_model: str = "gpt-4o-mini"

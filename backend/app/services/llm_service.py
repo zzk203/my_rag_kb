@@ -9,12 +9,13 @@ class LLMFactory:
 
     @staticmethod
     def create_llm(
-        provider: str,
-        model: str,
+        provider: Optional[str] = None,
+        model: str = "gpt-4o-mini",
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         **kwargs,
     ):
+        provider = provider or "openai"
         if provider == "openai":
             return ChatOpenAI(
                 model=model,
@@ -33,12 +34,13 @@ class LLMFactory:
 
     @staticmethod
     def create_embeddings(
-        provider: str,
-        model: str,
+        provider: Optional[str] = None,
+        model: str = "text-embedding-3-small",
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         **kwargs,
     ):
+        provider = provider or "openai"
         if provider == "openai":
             return OpenAIEmbeddings(
                 model=model,
