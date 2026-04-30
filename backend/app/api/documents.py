@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -11,6 +11,7 @@ from app.schemas.document import ChunkOut, DocumentOut, DocumentUpdate
 from app.services.indexing_service import IndexingService
 from app.services.parser_service import compute_file_hash, save_upload_file
 from app.models.chunk import Chunk as ChunkModel
+from app.tasks.index_task import schedule_indexing
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -22,6 +23,7 @@ async def upload_document(
     collection_id: int,
     file: UploadFile = File(...),
     tags: str = Form("[]"),
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
 ):
     collection = db.query(Collection).filter(Collection.id == collection_id).first()
@@ -57,9 +59,8 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
 
-    indexing_service.index_document(db, collection, doc, file_path)
+    schedule_indexing(background_tasks, collection.id, doc.id, file_path)
 
-    db.refresh(doc)
     return doc
 
 
@@ -116,7 +117,7 @@ def update_document(document_id: int, data: DocumentUpdate, db: Session = Depend
 
 
 @router.post("/{document_id}/reindex")
-def reindex_document(document_id: int, db: Session = Depends(get_db)):
+def reindex_document(document_id: int, background_tasks: BackgroundTasks = None, db: Session = Depends(get_db)):
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:
         from fastapi import HTTPException
@@ -134,8 +135,7 @@ def reindex_document(document_id: int, db: Session = Depends(get_db)):
     doc.error_message = None
     db.commit()
 
-    indexing_service.index_document(db, collection, doc, doc.file_path)
-    db.refresh(doc)
+    schedule_indexing(background_tasks, collection.id, doc.id, doc.file_path)
     return doc
 
 

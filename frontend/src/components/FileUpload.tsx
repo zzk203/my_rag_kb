@@ -1,7 +1,6 @@
-import React, { useState } from 'react'
-import { Upload, message as antMsg, Button } from 'antd'
+import React, { useRef, useState } from 'react'
+import { Button, message as antMsg } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
-import type { UploadFile, UploadProps } from 'antd'
 import { uploadDocument } from '../api/documents'
 
 interface Props {
@@ -11,11 +10,21 @@ interface Props {
 }
 
 const FileUpload: React.FC<Props> = ({ collectionId, onSuccess, disabled }) => {
-  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [fileName, setFileName] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<File | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      fileRef.current = file
+      setFileName(file.name)
+    }
+  }
 
   const handleUpload = async () => {
-    const file = fileList[0]?.originFileObj
+    const file = fileRef.current
     if (!file) return
     if (!collectionId) {
       antMsg.error('请先选择一个知识库')
@@ -29,7 +38,9 @@ const FileUpload: React.FC<Props> = ({ collectionId, onSuccess, disabled }) => {
       } else {
         antMsg.success(`${file.name} 上传成功`)
       }
-      setFileList([])
+      fileRef.current = null
+      setFileName(null)
+      if (inputRef.current) inputRef.current.value = ''
       onSuccess?.()
     } catch (err: any) {
       antMsg.error(err.message || '上传失败')
@@ -38,28 +49,27 @@ const FileUpload: React.FC<Props> = ({ collectionId, onSuccess, disabled }) => {
     }
   }
 
-  const props: UploadProps = {
-    fileList,
-    beforeUpload: (file) => {
-      setFileList([file])
-      return false
-    },
-    onRemove: () => setFileList([]),
-    maxCount: 1,
-    accept: '.pdf,.docx,.pptx,.md,.txt,.html,.htm,.png,.jpg,.jpeg',
-  }
-
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-      <Upload {...props} disabled={disabled}>
-        <Button icon={<UploadOutlined />} disabled={disabled}>
-          选择文件
-        </Button>
-      </Upload>
+      <input
+        ref={inputRef}
+        type="file"
+        hidden
+        onChange={handleFileChange}
+        accept=".pdf,.docx,.pptx,.md,.txt,.html,.htm,.png,.jpg,.jpeg"
+      />
+      <Button
+        icon={<UploadOutlined />}
+        disabled={disabled}
+        onClick={() => inputRef.current?.click()}
+      >
+        选择文件
+      </Button>
+      {fileName && <span style={{ fontSize: 13, color: '#666' }}>{fileName}</span>}
       <Button
         type="primary"
         onClick={handleUpload}
-        disabled={fileList.length === 0 || disabled}
+        disabled={!fileRef.current || disabled}
         loading={uploading}
       >
         上传
