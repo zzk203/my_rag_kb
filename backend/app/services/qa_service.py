@@ -45,7 +45,10 @@ class QAService:
                 history_lines.append(f"{role}: {h.content[:200]}")
             history_text = "\n".join(history_lines)
 
-        llm = LLMFactory.create_llm(collection.provider, collection.llm_model)
+        llm = LLMFactory.create_llm(
+            collection.provider, collection.llm_model,
+            api_key=collection.api_key, base_url=collection.base_url,
+        )
         prompt = self._build_prompt(query, context, history_text)
         answer = llm.invoke(prompt)
         answer_text = answer.content if hasattr(answer, "content") else str(answer)

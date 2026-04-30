@@ -39,7 +39,10 @@ class IndexingService:
                 "document_id": doc.id,
             })
 
-            embeddings = LLMFactory.create_embeddings(collection.provider, collection.embedding_model)
+            embeddings = LLMFactory.create_embeddings(
+                collection.provider, collection.embedding_model,
+                api_key=collection.api_key, base_url=collection.base_url,
+            )
             vectorstore = Chroma(
                 collection_name=f"collection_{collection.id}",
                 embedding_function=embeddings,
@@ -79,7 +82,10 @@ class IndexingService:
 
     def delete_document_vectors(self, db: Session, collection: Collection, document_id: int):
         try:
-            embeddings = LLMFactory.create_embeddings(collection.provider, collection.embedding_model)
+            embeddings = LLMFactory.create_embeddings(
+                collection.provider, collection.embedding_model,
+                api_key=collection.api_key, base_url=collection.base_url,
+            )
             vectorstore = Chroma(
                 collection_name=f"collection_{collection.id}",
                 embedding_function=embeddings,
@@ -99,7 +105,10 @@ class IndexingService:
             db.rollback()
 
     def get_or_create_collection_vectorstore(self, collection: Collection) -> Chroma:
-        embeddings = LLMFactory.create_embeddings(collection.provider, collection.embedding_model)
+        embeddings = LLMFactory.create_embeddings(
+            collection.provider, collection.embedding_model,
+            api_key=collection.api_key, base_url=collection.base_url,
+        )
         return Chroma(
             collection_name=f"collection_{collection.id}",
             embedding_function=embeddings,

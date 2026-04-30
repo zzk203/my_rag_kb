@@ -7,26 +7,32 @@ from pydantic import BaseModel
 class CollectionCreate(BaseModel):
     name: str
     description: str = ""
-    embedding_model: str = "text-embedding-3-small"
-    llm_model: str = "gpt-4o-mini"
     provider: str = "openai"
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    llm_model: str = "gpt-4o-mini"
+    embedding_model: str = "text-embedding-3-small"
 
 
 class CollectionUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    embedding_model: Optional[str] = None
-    llm_model: Optional[str] = None
     provider: Optional[str] = None
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    llm_model: Optional[str] = None
+    embedding_model: Optional[str] = None
 
 
 class CollectionOut(BaseModel):
     id: int
     name: str
     description: str
-    embedding_model: str
-    llm_model: str
     provider: str
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    llm_model: str
+    embedding_model: str
     created_at: datetime
     updated_at: datetime
 

@@ -49,12 +49,24 @@ uvicorn app.main:app --reload
 ### 4. 使用
 
 ```bash
-# 创建知识库
+# 创建知识库（不指定模型则使用 .env 默认值）
 curl -X POST http://localhost:8000/api/v1/collections \
   -H "Content-Type: application/json" \
   -d '{"name":"技术文档"}'
 
-# 上传文档（{collection_id} 替换为知识库 ID）
+# 创建使用智谱 GLM 的知识库（每个库可独立配置）
+curl -X POST http://localhost:8000/api/v1/collections \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name":"中文知识库",
+    "provider":"openai",
+    "api_key":"your-zhipu-api-key",
+    "base_url":"https://open.bigmodel.cn/api/paas/v4",
+    "llm_model":"glm-4.7-flash",
+    "embedding_model":"embedding-3"
+  }'
+
+# 上传文档
 curl -X POST http://localhost:8000/api/v1/documents/upload/1 \
   -F "file=@doc.pdf"
 
@@ -68,6 +80,8 @@ curl -X POST http://localhost:8000/api/v1/chat \
   -H "Content-Type: application/json" \
   -d '{"query":"什么是RAG","collection_id":1}'
 ```
+
+> `.env` 中的 `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` / `EMBEDDING_MODEL` 是全局默认值。新建知识库若不指定自己的 API Key 和 Base URL，则继承这些默认值。每个知识库的 `api_key` 在响应中会被脱敏处理。
 
 ## 项目结构
 
@@ -104,10 +118,10 @@ rag_kb/
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `POST` | `/api/v1/collections` | 创建知识库 |
+| `POST` | `/api/v1/collections` | 创建知识库（可指定 api_key/base_url/provider/model） |
 | `GET` | `/api/v1/collections` | 知识库列表 |
 | `GET` | `/api/v1/collections/{id}` | 知识库详情 |
-| `PUT` | `/api/v1/collections/{id}` | 更新知识库 |
+| `PUT` | `/api/v1/collections/{id}` | 更新知识库配置 |
 | `DELETE` | `/api/v1/collections/{id}` | 删除知识库（级联删除文档和向量） |
 | `GET` | `/api/v1/collections/{id}/stats` | 知识库统计 |
 | `POST` | `/api/v1/documents/upload/{collection_id}` | 上传文档 |
