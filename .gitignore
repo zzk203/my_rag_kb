@@ -26,6 +26,9 @@ backend/data/*.db
 .DS_Store
 Thumbs.db
 
+# Playwright
+.playwright-cli/
+
 # Node / Frontend
 node_modules/
 frontend/dist/

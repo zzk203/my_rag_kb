@@ -97,8 +97,6 @@ const CollectionPage: React.FC = () => {
     }
   }
 
-  const llmModels = ['gpt-4o-mini', 'glm-4.7-flash', 'qwen-turbo', 'deepseek-chat']
-
   return (
     <div style={{ padding: 24 }}>
       <div
@@ -196,12 +194,7 @@ const CollectionPage: React.FC = () => {
             <Input.Password placeholder="留空则使用 .env 默认值" />
           </Form.Item>
           <Form.Item name="llm_model" label="LLM 模型">
-            <Select
-              mode="tags"
-              maxCount={1}
-              options={llmModels.map((m) => ({ label: m, value: m }))}
-              placeholder="如: gpt-4o-mini"
-            />
+            <Input placeholder="如: gpt-4o-mini 或 glm-4.7-flash" />
           </Form.Item>
           <Form.Item name="embedding_model" label="Embedding 模型">
             <Input placeholder="如: text-embedding-3-small" />

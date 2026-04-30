@@ -5,12 +5,18 @@ const api = axios.create({
   timeout: 120000,
 })
 
+function extractError(err: any): string {
+  const detail = err.response?.data?.detail
+  if (Array.isArray(detail)) {
+    return detail.map((d: any) => d.msg || String(d)).join('; ')
+  }
+  if (typeof detail === 'string') return detail
+  return err.message || '请求失败'
+}
+
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    const msg = err.response?.data?.detail || err.message || '请求失败'
-    return Promise.reject(new Error(msg))
-  },
+  (err) => Promise.reject(new Error(extractError(err))),
 )
 
 export default api
