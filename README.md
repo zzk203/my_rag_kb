@@ -40,11 +40,27 @@ pip install -r requirements.txt
 
 ### 3. 启动
 
+**后端：**
 ```bash
+cd backend
 uvicorn app.main:app --reload
+# API 文档: http://localhost:8000/docs
 ```
 
-访问 http://localhost:8000/docs 查看交互式 API 文档。
+**前端（开发模式）：**
+```bash
+cd frontend
+npm install
+npm run dev
+# 访问: http://localhost:3000
+```
+
+**或使用 Docker 一键启动：**
+```bash
+docker compose up -d
+# 前端: http://localhost:3000
+# API: http://localhost:8000/docs
+```
 
 ### 4. 使用
 
@@ -108,7 +124,15 @@ rag_kb/
 │   │   └── knowledge.db          # SQLite 元数据
 │   ├── requirements.txt
 │   └── Dockerfile
-├── frontend/                     # (待开发)
+├── frontend/                     # React + Ant Design 5 前端
+│   ├── src/
+│   │   ├── pages/                # 页面 (Chat/Document/Collection)
+│   │   ├── components/           # 公共组件
+│   │   ├── api/                  # API 调用封装
+│   │   ├── store/                # zustand 状态管理
+│   │   └── types/                # TypeScript 类型定义
+│   ├── package.json
+│   └── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
