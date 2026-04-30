@@ -17,10 +17,18 @@ const FileUpload: React.FC<Props> = ({ collectionId, onSuccess, disabled }) => {
   const handleUpload = async () => {
     const file = fileList[0]?.originFileObj
     if (!file) return
+    if (!collectionId) {
+      antMsg.error('请先选择一个知识库')
+      return
+    }
     setUploading(true)
     try {
-      await uploadDocument(collectionId, file)
-      antMsg.success(`${file.name} 上传成功`)
+      const doc = await uploadDocument(collectionId, file)
+      if (doc.status === 'error') {
+        antMsg.error(`${file.name} 上传失败: ${doc.error_message || '未知错误'}`)
+      } else {
+        antMsg.success(`${file.name} 上传成功`)
+      }
       setFileList([])
       onSuccess?.()
     } catch (err: any) {

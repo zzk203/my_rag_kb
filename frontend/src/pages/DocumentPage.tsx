@@ -5,6 +5,7 @@ import {
   Button,
   Space,
   Tag,
+  Tooltip,
   Typography,
   message as antMsg,
   Modal,
@@ -115,10 +116,14 @@ const DocumentPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (v: string) => {
+      render: (v: string, record: Document) => {
         const color =
           v === 'ready' ? 'green' : v === 'error' ? 'red' : v === 'processing' ? 'blue' : 'default'
-        return <Tag color={color}>{v}</Tag>
+        const tag = <Tag color={color}>{v}</Tag>
+        if (v === 'error' && record.error_message) {
+          return <Tooltip title={record.error_message}>{tag}</Tooltip>
+        }
+        return tag
       },
     },
     {
