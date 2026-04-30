@@ -54,8 +54,8 @@ curl -X POST http://localhost:8000/api/v1/collections \
   -H "Content-Type: application/json" \
   -d '{"name":"技术文档"}'
 
-# 上传文档
-curl -X POST http://localhost:8000/api/v1/collections/{id}/documents \
+# 上传文档（{collection_id} 替换为知识库 ID）
+curl -X POST http://localhost:8000/api/v1/documents/upload/1 \
   -F "file=@doc.pdf"
 
 # 搜索
@@ -106,13 +106,23 @@ rag_kb/
 |------|------|------|
 | `POST` | `/api/v1/collections` | 创建知识库 |
 | `GET` | `/api/v1/collections` | 知识库列表 |
-| `DELETE` | `/api/v1/collections/{id}` | 删除知识库 |
-| `POST` | `/api/v1/documents/upload/{id}` | 上传文档 |
-| `GET` | `/api/v1/documents` | 文档列表 |
-| `DELETE` | `/api/v1/documents/{id}` | 删除文档 |
-| `POST` | `/api/v1/search` | 搜索 |
-| `POST` | `/api/v1/chat` | 问答 |
+| `GET` | `/api/v1/collections/{id}` | 知识库详情 |
+| `PUT` | `/api/v1/collections/{id}` | 更新知识库 |
+| `DELETE` | `/api/v1/collections/{id}` | 删除知识库（级联删除文档和向量） |
+| `GET` | `/api/v1/collections/{id}/stats` | 知识库统计 |
+| `POST` | `/api/v1/documents/upload/{collection_id}` | 上传文档 |
+| `GET` | `/api/v1/documents` | 文档列表（支持 collection_id 筛选） |
+| `GET` | `/api/v1/documents/{id}` | 文档详情 |
+| `PUT` | `/api/v1/documents/{id}` | 更新文档标签 |
+| `DELETE` | `/api/v1/documents/{id}` | 删除文档（同步清理向量） |
+| `POST` | `/api/v1/documents/{id}/reindex` | 重新索引文档 |
+| `GET` | `/api/v1/documents/{id}/chunks` | 查看文档分块 |
+| `POST` | `/api/v1/search` | 混合搜索（支持 hybrid / vector / keyword） |
+| `POST` | `/api/v1/chat` | RAG 问答（支持多轮对话） |
 | `GET` | `/api/v1/chat/conversations` | 对话列表 |
+| `GET` | `/api/v1/chat/conversations/{id}` | 对话详情 |
+| `DELETE` | `/api/v1/chat/conversations/{id}` | 删除对话 |
+| `GET` | `/health` | 健康检查 |
 
 ## Docker 部署
 
