@@ -26,5 +26,9 @@ backend/data/*.db
 .DS_Store
 Thumbs.db
 
+# Node / Frontend
+node_modules/
+frontend/dist/
+
 # Docker
 .docker/
