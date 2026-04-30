@@ -1,87 +1,121 @@
-# RAG Knowledge Base
+# My RAG Knowledge Base
 
-基于 LangChain 的本地知识库问答系统，支持 PDF、Markdown、TXT 等多种文档格式。
+基于 FastAPI + ChromaDB 的个人知识库问答系统，支持多格式文档导入、混合检索、RAG 智能问答。
+
+## 技术栈
+
+| 层级 | 选型 |
+|------|------|
+| 后端 | FastAPI, SQLAlchemy, SQLite |
+| 向量库 | ChromaDB（增量索引、元数据过滤） |
+| 文档解析 | Docling + pypdf / python-docx / python-pptx |
+| 检索 | BM25 关键词 + 向量语义 + RRF 融合 |
+| LLM | OpenAI 兼容 API / Ollama（本地） |
 
 ## 功能特性
 
-- **多格式文档支持**: PDF、Markdown、TXT、CSV、HTML、DOC/DOCX
-- **灵活的文本分块**: 可配置 chunk size 和 overlap
-- **多种检索模式**: 相似度检索、MMR 多样性检索、RAG 链式问答
-- **持久化向量存储**: 使用 FAISS 本地存储
-- **交互式命令行**: 支持交互式问答
+- **多格式文档**: PDF / DOCX / PPTX / Markdown / TXT / HTML / 图片
+- **增量索引**: 新增文档自动索引，删除文档同步清理向量
+- **混合检索**: BM25 关键词 + ChromaDB 向量 + RRF 排序融合
+- **RAG 问答**: 带来源引用的 LLM 问答，支持多轮对话
+- **知识库分类**: 多个知识库独立管理，可配置不同模型
+- **REST API**: 完整 CRUD + 搜索 + 问答接口
+- **双模 LLM**: 同时支持云端 API 和本地 Ollama
 
-## 安装
+## 快速开始
 
-```bash
-cd rag_kb
-pip install -r requirements.txt
-```
-
-## 配置
-
-复制 `.env.example` 为 `.env` 并配置:
+### 1. 配置
 
 ```bash
 cp .env.example .env
+# 编辑 .env 填入 API Key 和模型
 ```
 
-编辑 `.env`:
-```
-OPENAI_API_KEY=your-api-key
-OPENAI_MODEL=gpt-4o-mini
-EMBEDDING_MODEL=text-embedding-3-small
-```
-
-## 使用
-
-### 1. 索引文档
+### 2. 安装
 
 ```bash
-python -m main --index --data-dir ./documents
+cd backend
+pip install -r requirements.txt
 ```
 
-### 2. 交互式问答
+### 3. 启动
 
 ```bash
-python -m main --interactive
+uvicorn app.main:app --reload
 ```
 
-### 3. 单次查询
+访问 http://localhost:8000/docs 查看交互式 API 文档。
+
+### 4. 使用
 
 ```bash
-python -m main --query "你的问题"
-```
+# 创建知识库
+curl -X POST http://localhost:8000/api/v1/collections \
+  -H "Content-Type: application/json" \
+  -d '{"name":"技术文档"}'
 
-### Python API
+# 上传文档
+curl -X POST http://localhost:8000/api/v1/collections/{id}/documents \
+  -F "file=@doc.pdf"
 
-```python
-from rag_kb import RAGKnowledgeBase
+# 搜索
+curl -X POST http://localhost:8000/api/v1/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"什么是RAG","collection_id":1}'
 
-kb = RAGKnowledgeBase(
-    data_dir="./documents",
-    vector_store_dir="./vector_store"
-)
-
-kb.index_documents()
-
-result = kb.query("什么是 RAG？")
-print(result["answer"])
+# 问答
+curl -X POST http://localhost:8000/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"query":"什么是RAG","collection_id":1}'
 ```
 
 ## 项目结构
 
 ```
 rag_kb/
-├── config.py        # 配置管理
-├── loader.py        # 文档加载器
-├── vectorstore.py   # 向量存储管理
-├── retrieval.py     # 检索和 RAG 链
-├── main.py          # 主程序和 CLI
-└── .env.example     # 环境变量模板
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI 入口
+│   │   ├── config.py             # 配置管理
+│   │   ├── models/               # SQLAlchemy 数据模型
+│   │   ├── schemas/              # Pydantic 请求/响应模型
+│   │   ├── services/             # 业务逻辑层
+│   │   │   ├── parser_service.py    # 文档解析
+│   │   │   ├── splitter_service.py  # 文本分块
+│   │   │   ├── indexing_service.py  # 向量索引
+│   │   │   ├── retrieval_service.py # 混合检索
+│   │   │   ├── qa_service.py        # RAG 问答
+│   │   │   └── llm_service.py       # LLM 工厂
+│   │   ├── api/                  # REST API 路由
+│   │   └── tasks/                # 后台任务
+│   ├── data/                     # 运行时数据
+│   │   ├── uploads/              # 上传文件
+│   │   ├── chroma/               # ChromaDB 持久化
+│   │   └── knowledge.db          # SQLite 元数据
+│   ├── requirements.txt
+│   └── Dockerfile
+├── frontend/                     # (待开发)
+├── docker-compose.yml
+├── .env.example
+└── README.md
 ```
 
-## 检索模式
+## API 概览
 
-- **rag**: 使用 LLM 基于检索结果生成答案（推荐）
-- **raw**: 直接返回相似文档
-- **mmr**: 使用最大边际相关性检索
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/v1/collections` | 创建知识库 |
+| `GET` | `/api/v1/collections` | 知识库列表 |
+| `DELETE` | `/api/v1/collections/{id}` | 删除知识库 |
+| `POST` | `/api/v1/documents/upload/{id}` | 上传文档 |
+| `GET` | `/api/v1/documents` | 文档列表 |
+| `DELETE` | `/api/v1/documents/{id}` | 删除文档 |
+| `POST` | `/api/v1/search` | 搜索 |
+| `POST` | `/api/v1/chat` | 问答 |
+| `GET` | `/api/v1/chat/conversations` | 对话列表 |
+
+## Docker 部署
+
+```bash
+docker compose up -d
+```
