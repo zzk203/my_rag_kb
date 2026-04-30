@@ -27,9 +27,12 @@
 ### 1. 配置
 
 ```bash
-cp .env.example .env
-# 编辑 .env 填入 API Key 和模型
+cp .env.example backend/.env
+# 编辑 backend/.env 填入 API Key 和模型
 ```
+
+> `.env` 文件位于 `backend/` 目录下。`config.py` 会自动从 `backend/.env` 加载，
+> 若不存在则尝试从项目根目录加载。Docker 部署时由 Compose 注入环境变量。
 
 ### 2. 安装
 
