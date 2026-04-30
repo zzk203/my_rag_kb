@@ -1,3 +1,5 @@
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -30,15 +32,15 @@ def chat(data: ChatRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.get("/conversations", response_model=list[ConversationOut])
-def list_conversations(collection_id: int = None, db: Session = Depends(get_db)):
+@router.get("/conversations", response_model=List[ConversationOut])
+def list_conversations(collection_id: Optional[int] = None, db: Session = Depends(get_db)):
     query = db.query(Conversation)
     if collection_id is not None:
         query = query.filter(Conversation.collection_id == collection_id)
     return query.order_by(Conversation.updated_at.desc()).all()
 
 
-@router.get("/conversations/{conversation_id}", response_model=list[MessageOut])
+@router.get("/conversations/{conversation_id}", response_model=List[MessageOut])
 def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
     messages = (
         db.query(Message)

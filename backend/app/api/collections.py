@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -10,7 +12,7 @@ from app.schemas.collection import CollectionCreate, CollectionOut, CollectionSt
 router = APIRouter(prefix="/collections", tags=["collections"])
 
 
-@router.get("", response_model=list[CollectionOut])
+@router.get("", response_model=List[CollectionOut])
 def list_collections(db: Session = Depends(get_db)):
     return db.query(Collection).all()
 

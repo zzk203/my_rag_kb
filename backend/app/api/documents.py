@@ -1,3 +1,5 @@
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
@@ -61,10 +63,10 @@ async def upload_document(
     return doc
 
 
-@router.get("", response_model=list[DocumentOut])
+@router.get("", response_model=List[DocumentOut])
 def list_documents(
-    collection_id: int = None,
-    status: str = None,
+    collection_id: Optional[int] = None,
+    status: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(Document)
@@ -137,7 +139,7 @@ def reindex_document(document_id: int, db: Session = Depends(get_db)):
     return doc
 
 
-@router.get("/{document_id}/chunks", response_model=list[ChunkOut])
+@router.get("/{document_id}/chunks", response_model=List[ChunkOut])
 def get_document_chunks(document_id: int, db: Session = Depends(get_db)):
     chunks = db.query(ChunkModel).filter(ChunkModel.document_id == document_id).order_by(ChunkModel.chunk_index).all()
     return chunks

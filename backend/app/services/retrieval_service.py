@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.chunk import Chunk as ChunkModel
 from app.models.collection import Collection
+from app.models.document import Document as DocumentModel
 from app.services.llm_service import LLMFactory
 
 
@@ -55,14 +56,15 @@ class HybridRetriever:
             persist_directory=settings.vector_store_dir,
         )
 
-        filter_dict = {}
+        chroma_filter = None
         if filters:
+            chroma_filter = {}
             if "tags" in filters:
                 pass
             if "file_type" in filters:
                 pass
 
-        results = vectorstore.similarity_search_with_score(query, k=top_k, filter=filter_dict)
+        results = vectorstore.similarity_search_with_score(query, k=top_k, filter=chroma_filter)
 
         output = []
         for doc, score in results:
@@ -103,8 +105,8 @@ class HybridRetriever:
 
         chunks = (
             self.db.query(ChunkModel)
-            .join(ChunkModel.document)
-            .filter(ChunkModel.document.has(collection_id=collection_id))
+            .join(DocumentModel, ChunkModel.document_id == DocumentModel.id)
+            .filter(DocumentModel.collection_id == collection_id)
             .all()
         )
 
