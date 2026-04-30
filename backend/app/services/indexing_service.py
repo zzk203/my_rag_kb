@@ -50,26 +50,30 @@ class IndexingService:
             )
 
             chunk_records = []
-            chroma_ids = []
-
             for i, split_doc in enumerate(split_docs):
                 split_doc.metadata["chunk_index"] = i
                 split_doc.metadata["document_id"] = doc.id
                 split_doc.metadata["collection_id"] = collection.id
 
-            chroma_ids = vectorstore.add_documents(split_docs)
-
-            for i, split_doc in enumerate(split_docs):
-                chunk_records.append(ChunkModel(
+                cr = ChunkModel(
                     document_id=doc.id,
                     chunk_index=i,
                     content=split_doc.page_content,
                     page_number=None,
-                    meta_json=json.dumps(split_doc.metadata, ensure_ascii=False),
-                    chroma_id=chroma_ids[i] if i < len(chroma_ids) else "",
-                ))
+                    meta_json="{}",
+                    chroma_id="",
+                )
+                db.add(cr)
+                db.flush()
+                split_doc.metadata["chunk_id"] = cr.id
+                chunk_records.append(cr)
 
-            db.bulk_save_objects(chunk_records)
+            chroma_ids = vectorstore.add_documents(split_docs)
+
+            for i, cr in enumerate(chunk_records):
+                cr.chroma_id = chroma_ids[i] if i < len(chroma_ids) else ""
+                cr.meta_json = json.dumps(split_docs[i].metadata, ensure_ascii=False)
+
             doc.status = "ready"
             doc.chunk_count = len(chunk_records)
             db.commit()

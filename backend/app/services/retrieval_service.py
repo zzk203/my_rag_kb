@@ -69,14 +69,26 @@ class HybridRetriever:
 
         results = vectorstore.similarity_search_with_score(query, k=top_k, filter=chroma_filter)
 
+        doc_ids = set()
+        for d, _ in results:
+            did = d.metadata.get("document_id", 0)
+            if did:
+                doc_ids.add(did)
+
+        filenames = {}
+        if doc_ids:
+            docs = self.db.query(DocumentModel).filter(DocumentModel.id.in_(doc_ids)).all()
+            filenames = {d.id: d.filename for d in docs}
+
         output = []
         for doc, score in results:
+            did = doc.metadata.get("document_id", 0)
             output.append({
-                "chunk_id": doc.metadata.get("chunk_index", 0),
+                "chunk_id": doc.metadata.get("chunk_id", doc.metadata.get("chunk_index", 0)),
                 "content": doc.page_content,
                 "score": float(score),
-                "document_id": doc.metadata.get("document_id", 0),
-                "filename": "",
+                "document_id": did,
+                "filename": filenames.get(did, ""),
                 "page_number": doc.metadata.get("page_number"),
             })
 
@@ -116,6 +128,12 @@ class HybridRetriever:
         if not chunks:
             return None, []
 
+        doc_ids = set(c.document_id for c in chunks)
+        filenames = {}
+        if doc_ids:
+            docs = self.db.query(DocumentModel).filter(DocumentModel.id.in_(doc_ids)).all()
+            filenames = {d.id: d.filename for d in docs}
+
         docs = []
         for c in chunks:
             meta = {}
@@ -127,7 +145,7 @@ class HybridRetriever:
                 "chunk_id": c.id,
                 "content": c.content,
                 "document_id": c.document_id,
-                "filename": "",
+                "filename": filenames.get(c.document_id, ""),
                 "page_number": c.page_number,
                 "chunk_index": c.chunk_index,
             })
