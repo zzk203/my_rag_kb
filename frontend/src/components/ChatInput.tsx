@@ -1,15 +1,16 @@
 import React, { useState } from 'react'
 import { Input, Button } from 'antd'
-import { SendOutlined } from '@ant-design/icons'
+import { SendOutlined, CloseOutlined } from '@ant-design/icons'
 
 const { TextArea } = Input
 
 interface Props {
   onSend: (text: string) => void
+  onStop?: () => void
   loading?: boolean
 }
 
-const ChatInput: React.FC<Props> = ({ onSend, loading }) => {
+const ChatInput: React.FC<Props> = ({ onSend, onStop, loading }) => {
   const [text, setText] = useState('')
 
   const handleSend = () => {
@@ -22,6 +23,7 @@ const ChatInput: React.FC<Props> = ({ onSend, loading }) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
+      if (loading) return
       handleSend()
     }
   }
@@ -37,15 +39,26 @@ const ChatInput: React.FC<Props> = ({ onSend, loading }) => {
           autoSize={{ minRows: 1, maxRows: 4 }}
           style={{ flex: 1 }}
         />
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSend}
-          loading={loading}
-          style={{ alignSelf: 'flex-end' }}
-        >
-          发送
-        </Button>
+        {loading ? (
+          <Button
+            danger
+            icon={<CloseOutlined />}
+            onClick={onStop}
+            style={{ alignSelf: 'flex-end' }}
+          >
+            停止
+          </Button>
+        ) : (
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSend}
+            disabled={!text.trim()}
+            style={{ alignSelf: 'flex-end' }}
+          >
+            发送
+          </Button>
+        )}
       </div>
     </div>
   )

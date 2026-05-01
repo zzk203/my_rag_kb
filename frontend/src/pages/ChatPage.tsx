@@ -7,21 +7,32 @@ import { chat as chatApi } from '../api/chat'
 import type { Message as MessageType } from '../types'
 
 const { Text } = Typography
+const THINKING_ID = -1
 
 const ChatPage: React.FC = () => {
   const currentCollectionId = useAppStore((s) => s.currentCollectionId)
   const currentConversationId = useAppStore((s) => s.currentConversationId)
   const messages = useAppStore((s) => s.messages)
   const addMessage = useAppStore((s) => s.addMessage)
+  const replaceMessage = useAppStore((s) => s.replaceMessage)
+  const removeMessage = useAppStore((s) => s.removeMessage)
   const loadConversations = useAppStore((s) => s.loadConversations)
   const setCurrentConversation = useAppStore((s) => s.setCurrentConversation)
 
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort()
+    abortRef.current = null
+    removeMessage(THINKING_ID)
+    setLoading(false)
+  }, [removeMessage])
 
   const handleSend = useCallback(
     async (query: string) => {
@@ -38,7 +49,20 @@ const ChatPage: React.FC = () => {
         created_at: new Date().toISOString(),
       }
       addMessage(userMsg)
+      removeMessage(THINKING_ID)
+
+      const thinkingMsg: MessageType = {
+        id: THINKING_ID,
+        conversation_id: currentConversationId || 0,
+        role: 'assistant',
+        content: '...',
+        created_at: new Date().toISOString(),
+      }
+      addMessage(thinkingMsg)
       setLoading(true)
+
+      const controller = new AbortController()
+      abortRef.current = controller
 
       try {
         const res = await chatApi({
@@ -46,7 +70,7 @@ const ChatPage: React.FC = () => {
           collection_id: currentCollectionId,
           conversation_id: currentConversationId,
           top_k: 5,
-        })
+        }, controller.signal)
 
         if (!currentConversationId) {
           setCurrentConversation(res.conversation_id)
@@ -61,17 +85,22 @@ const ChatPage: React.FC = () => {
           sources_json: JSON.stringify(res.sources),
           created_at: new Date().toISOString(),
         }
-        addMessage(assistantMsg)
+        replaceMessage(THINKING_ID, assistantMsg)
       } catch (err: any) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return
+        removeMessage(THINKING_ID)
         antMsg.error(err.message || '请求失败')
       } finally {
         setLoading(false)
+        abortRef.current = null
       }
     },
     [
       currentCollectionId,
       currentConversationId,
       addMessage,
+      replaceMessage,
+      removeMessage,
       setCurrentConversation,
       loadConversations,
     ],
@@ -110,7 +139,7 @@ const ChatPage: React.FC = () => {
         <div ref={bottomRef} />
       </div>
 
-      <ChatInput onSend={handleSend} loading={loading} />
+      <ChatInput onSend={handleSend} onStop={handleStop} loading={loading} />
     </div>
   )
 }

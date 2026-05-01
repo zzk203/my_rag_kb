@@ -1,8 +1,8 @@
 import api from './client'
 import type { ChatRequest, ChatResponse, Conversation, Message } from '../types'
 
-export const chat = (data: ChatRequest) =>
-  api.post<ChatResponse>('/chat', data).then((r) => r.data)
+export const chat = (data: ChatRequest, signal?: AbortSignal) =>
+  api.post<ChatResponse>('/chat', data, { signal }).then((r) => r.data)
 
 export const getConversations = (collectionId?: number) =>
   api

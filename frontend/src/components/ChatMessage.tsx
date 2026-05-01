@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Card, Typography, Collapse, Tag, Space } from 'antd'
 import { UserOutlined, RobotOutlined, LinkOutlined } from '@ant-design/icons'
 import type { Message, SearchResult } from '../types'
@@ -8,6 +8,15 @@ const { Text, Paragraph } = Typography
 
 interface Props {
   message: Message
+}
+
+const ThinkingDots: React.FC = () => {
+  const [dots, setDots] = useState('')
+  useEffect(() => {
+    const t = setInterval(() => setDots((s) => (s.length >= 3 ? '' : s + '.')), 400)
+    return () => clearInterval(t)
+  }, [])
+  return <span style={{ fontSize: 20, letterSpacing: 2 }}>{dots}</span>
 }
 
 const ChatMessage: React.FC<Props> = ({ message }) => {
@@ -44,7 +53,7 @@ const ChatMessage: React.FC<Props> = ({ message }) => {
         </Text>
 
         <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-          {message.content}
+          {!isUser && message.content === '...' ? <ThinkingDots /> : message.content}
         </div>
 
         {sources.length > 0 && (

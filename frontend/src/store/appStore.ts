@@ -16,6 +16,8 @@ interface AppStore {
   setCurrentConversation: (id: number | null) => void
   loadMessages: (convId: number) => Promise<void>
   addMessage: (msg: Message) => void
+  replaceMessage: (id: number, msg: Message) => void
+  removeMessage: (id: number) => void
   addConversation: (conv: Conversation) => void
 }
 
@@ -59,6 +61,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   addMessage: (msg) =>
     set((s) => ({ messages: [...s.messages, msg] })),
+
+  replaceMessage: (id, msg) =>
+    set((s) => ({
+      messages: s.messages.map((m) => (m.id === id ? msg : m)),
+    })),
+
+  removeMessage: (id) =>
+    set((s) => ({
+      messages: s.messages.filter((m) => m.id !== id),
+    })),
 
   addConversation: (conv) =>
     set((s) => ({ conversations: [conv, ...s.conversations] })),

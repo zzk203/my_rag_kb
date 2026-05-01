@@ -133,6 +133,10 @@ def reindex_document(document_id: int, background_tasks: BackgroundTasks = None,
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Document not found")
 
+    if doc.status == "processing":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="Document is being indexed, please wait")
+
     collection = db.query(Collection).filter(Collection.id == doc.collection_id).first()
     if not collection:
         from fastapi import HTTPException
@@ -140,7 +144,7 @@ def reindex_document(document_id: int, background_tasks: BackgroundTasks = None,
 
     indexing_service.delete_document_vectors(db, collection, document_id)
 
-    doc.status = "pending"
+    doc.status = "processing"
     doc.chunk_count = 0
     doc.error_message = None
     db.commit()
