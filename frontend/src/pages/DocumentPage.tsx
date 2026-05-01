@@ -213,6 +213,14 @@ const DocumentPage: React.FC = () => {
     },
   ]
 
+  const displayDocs = highlightDocId && docs.length > 0
+    ? [...docs].sort((a, b) => {
+        if (a.id === highlightDocId) return -1
+        if (b.id === highlightDocId) return 1
+        return 0
+      })
+    : docs
+
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -234,7 +242,7 @@ const DocumentPage: React.FC = () => {
       </div>
 
       <Table
-        dataSource={docs}
+        dataSource={displayDocs}
         columns={columns}
         rowKey="id"
         loading={loading}

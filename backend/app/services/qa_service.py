@@ -28,6 +28,8 @@ class QAService:
 
         filtered = [r for r in results if r.get("score", 0) >= max_score * RELEVANCE_THRESHOLD]
 
+        filtered.sort(key=lambda r: r.get("score", 0), reverse=True)
+
         for i, r in enumerate(filtered):
             r["source_index"] = i + 1
 

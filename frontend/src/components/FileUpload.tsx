@@ -10,43 +10,56 @@ interface Props {
 }
 
 const FileUpload: React.FC<Props> = ({ collectionId, onSuccess, disabled }) => {
-  const [fileName, setFileName] = useState<string | null>(null)
+  const [fileNames, setFileNames] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
-  const fileRef = useRef<File | null>(null)
+  const filesRef = useRef<File[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      fileRef.current = file
-      setFileName(file.name)
+    const files = e.target.files
+    if (files && files.length > 0) {
+      filesRef.current = Array.from(files)
+      setFileNames(Array.from(files).map((f) => f.name))
     }
   }
 
   const handleUpload = async () => {
-    const file = fileRef.current
-    if (!file) return
+    const files = filesRef.current
+    if (files.length === 0) return
     if (!collectionId) {
       antMsg.error('请先选择一个知识库')
       return
     }
     setUploading(true)
-    try {
-      const doc = await uploadDocument(collectionId, file)
-      if (doc.status === 'error') {
-        antMsg.error(`${file.name} 上传失败: ${doc.error_message || '未知错误'}`)
-      } else {
-        antMsg.success(`${file.name} 上传成功`)
+    let success = 0
+    let fail = 0
+
+    for (const file of files) {
+      try {
+        const doc = await uploadDocument(collectionId, file)
+        if (doc.status === 'error') {
+          fail++
+          antMsg.error(`${file.name} 上传失败: ${doc.error_message || '未知错误'}`)
+        } else {
+          success++
+        }
+      } catch (err: any) {
+        fail++
+        antMsg.error(`${file.name} 上传失败: ${err.message || '未知错误'}`)
       }
-      fileRef.current = null
-      setFileName(null)
-      if (inputRef.current) inputRef.current.value = ''
-      onSuccess?.()
-    } catch (err: any) {
-      antMsg.error(err.message || '上传失败')
-    } finally {
-      setUploading(false)
     }
+
+    filesRef.current = []
+    setFileNames([])
+    if (inputRef.current) inputRef.current.value = ''
+    onSuccess?.()
+
+    if (success > 0 && fail === 0) {
+      antMsg.success(`成功上传 ${success} 个文件`)
+    } else if (success > 0) {
+      antMsg.warning(`上传完成: ${success} 成功, ${fail} 失败`)
+    }
+    setUploading(false)
   }
 
   return (
@@ -54,6 +67,7 @@ const FileUpload: React.FC<Props> = ({ collectionId, onSuccess, disabled }) => {
       <input
         ref={inputRef}
         type="file"
+        multiple
         hidden
         onChange={handleFileChange}
         accept=".pdf,.docx,.pptx,.md,.txt,.html,.htm,.png,.jpg,.jpeg"
@@ -65,11 +79,12 @@ const FileUpload: React.FC<Props> = ({ collectionId, onSuccess, disabled }) => {
       >
         选择文件
       </Button>
-      {fileName && <span style={{ fontSize: 13, color: '#666' }}>{fileName}</span>}
+      {fileNames.length === 1 && <span style={{ fontSize: 13, color: '#666' }}>{fileNames[0]}</span>}
+      {fileNames.length > 1 && <span style={{ fontSize: 13, color: '#666' }}>已选 {fileNames.length} 个文件</span>}
       <Button
         type="primary"
         onClick={handleUpload}
-        disabled={!fileRef.current || disabled}
+        disabled={fileNames.length === 0 || disabled}
         loading={uploading}
       >
         上传
