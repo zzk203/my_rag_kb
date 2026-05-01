@@ -40,8 +40,10 @@ class IndexingService:
             })
 
             embeddings = LLMFactory.create_embeddings(
-                collection.provider, collection.embedding_model,
-                api_key=collection.api_key, base_url=collection.base_url,
+                collection.embedding_provider or collection.provider,
+                collection.embedding_model,
+                api_key=collection.embedding_api_key or collection.api_key,
+                base_url=collection.embedding_base_url or collection.base_url,
             )
             vectorstore = Chroma(
                 collection_name=f"collection_{collection.id}",
@@ -87,8 +89,10 @@ class IndexingService:
     def delete_document_vectors(self, db: Session, collection: Collection, document_id: int):
         try:
             embeddings = LLMFactory.create_embeddings(
-                collection.provider, collection.embedding_model,
-                api_key=collection.api_key, base_url=collection.base_url,
+                collection.embedding_provider or collection.provider,
+                collection.embedding_model,
+                api_key=collection.embedding_api_key or collection.api_key,
+                base_url=collection.embedding_base_url or collection.base_url,
             )
             vectorstore = Chroma(
                 collection_name=f"collection_{collection.id}",
@@ -139,8 +143,10 @@ class IndexingService:
 
     def get_or_create_collection_vectorstore(self, collection: Collection) -> Chroma:
         embeddings = LLMFactory.create_embeddings(
-            collection.provider, collection.embedding_model,
-            api_key=collection.api_key, base_url=collection.base_url,
+            collection.embedding_provider or collection.provider,
+            collection.embedding_model,
+            api_key=collection.embedding_api_key or collection.api_key,
+            base_url=collection.embedding_base_url or collection.base_url,
         )
         return Chroma(
             collection_name=f"collection_{collection.id}",

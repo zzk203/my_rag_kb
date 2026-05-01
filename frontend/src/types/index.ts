@@ -5,6 +5,9 @@ export interface Collection {
   provider: string
   api_key?: string | null
   base_url?: string | null
+  embedding_provider?: string | null
+  embedding_api_key?: string | null
+  embedding_base_url?: string | null
   llm_model: string
   embedding_model: string
   created_at: string
@@ -17,6 +20,9 @@ export interface CollectionCreate {
   provider?: string | null
   api_key?: string | null
   base_url?: string | null
+  embedding_provider?: string | null
+  embedding_api_key?: string | null
+  embedding_base_url?: string | null
   llm_model?: string
   embedding_model?: string
 }

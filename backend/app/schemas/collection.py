@@ -10,6 +10,9 @@ class CollectionCreate(BaseModel):
     provider: Optional[str] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
+    embedding_provider: Optional[str] = None
+    embedding_api_key: Optional[str] = None
+    embedding_base_url: Optional[str] = None
     llm_model: Optional[str] = None
     embedding_model: Optional[str] = None
     max_history: int = 6
@@ -22,6 +25,9 @@ class CollectionUpdate(BaseModel):
     provider: Optional[str] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
+    embedding_provider: Optional[str] = None
+    embedding_api_key: Optional[str] = None
+    embedding_base_url: Optional[str] = None
     llm_model: Optional[str] = None
     embedding_model: Optional[str] = None
     max_history: Optional[int] = None
@@ -35,6 +41,9 @@ class CollectionOut(BaseModel):
     provider: str
     api_key: Optional[str] = None
     base_url: Optional[str] = None
+    embedding_provider: Optional[str] = None
+    embedding_api_key: Optional[str] = None
+    embedding_base_url: Optional[str] = None
     llm_model: str
     embedding_model: str
     max_history: int = 6

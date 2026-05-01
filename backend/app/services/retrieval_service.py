@@ -59,8 +59,10 @@ class HybridRetriever:
         filters: Optional[Dict[str, Any]] = None,
     ) -> List[dict]:
         embeddings = LLMFactory.create_embeddings(
-            collection.provider, collection.embedding_model,
-            api_key=collection.api_key, base_url=collection.base_url,
+            collection.embedding_provider or collection.provider,
+            collection.embedding_model,
+            api_key=collection.embedding_api_key or collection.api_key,
+            base_url=collection.embedding_base_url or collection.base_url,
         )
         vectorstore = Chroma(
             collection_name=f"collection_{collection.id}",

@@ -16,6 +16,7 @@ import {
   Statistic,
   Popconfirm,
   Tag,
+  Divider,
 } from 'antd'
 import {
   PlusOutlined,
@@ -143,8 +144,10 @@ const CollectionPage: React.FC = () => {
                         {c.description || '无描述'}
                       </Text>
                       <div style={{ marginTop: 8 }}>
-                        <Tag>{c.provider}</Tag>
+                        <Tag>LLM: {c.provider}</Tag>
                         <Tag>{c.llm_model}</Tag>
+                        <Tag>Embed: {c.embedding_provider || c.provider}</Tag>
+                        <Tag>{c.embedding_model}</Tag>
                       </div>
                     </>
                   }
@@ -170,7 +173,7 @@ const CollectionPage: React.FC = () => {
         open={modalOpen}
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
-        width={500}
+        width={560}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
@@ -179,6 +182,8 @@ const CollectionPage: React.FC = () => {
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} placeholder="可选描述" />
           </Form.Item>
+
+          <Divider orientation="left" plain>LLM 配置</Divider>
           <Form.Item name="provider" label="Provider">
             <Select
               options={[
@@ -198,9 +203,29 @@ const CollectionPage: React.FC = () => {
           <Form.Item name="llm_model" label="LLM 模型">
             <Input placeholder="如: gpt-4o-mini 或 glm-4.7-flash" />
           </Form.Item>
+
+          <Divider orientation="left" plain>Embedding 配置 (留空则继承 LLM 配置)</Divider>
+          <Form.Item name="embedding_provider" label="Embed Provider">
+            <Select
+              options={[
+                { label: 'OpenAI 兼容', value: 'openai' },
+                { label: 'Ollama (本地)', value: 'ollama' },
+              ]}
+              allowClear
+              placeholder="默认继承 LLM Provider"
+            />
+          </Form.Item>
+          <Form.Item name="embedding_base_url" label="Embed API Base URL">
+            <Input placeholder="留空继承 LLM Base URL" />
+          </Form.Item>
+          <Form.Item name="embedding_api_key" label="Embed API Key">
+            <Input.Password placeholder="留空继承 LLM API Key" />
+          </Form.Item>
           <Form.Item name="embedding_model" label="Embedding 模型">
             <Input placeholder="如: text-embedding-3-small" />
           </Form.Item>
+
+          <Divider orientation="left" plain>其他</Divider>
           <Form.Item name="max_history" label="历史对话轮数">
             <InputNumber min={0} max={50} style={{ width: '100%' }} placeholder="默认 6" />
           </Form.Item>

@@ -44,8 +44,8 @@ class LLMFactory:
         if provider == "openai":
             return OpenAIEmbeddings(
                 model=model,
-                openai_api_key=api_key or settings.openai_api_key,
-                openai_api_base=base_url or settings.openai_base_url,
+                openai_api_key=api_key or settings.embedding_api_key or settings.openai_api_key,
+                openai_api_base=base_url or settings.embedding_base_url or settings.openai_base_url,
                 **kwargs,
             )
         elif provider == "ollama":
