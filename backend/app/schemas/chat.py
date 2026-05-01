@@ -30,6 +30,10 @@ class ConversationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ConversationUpdate(BaseModel):
+    title: str
+
+
 class MessageOut(BaseModel):
     id: int
     conversation_id: int

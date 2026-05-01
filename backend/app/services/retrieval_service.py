@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any, Dict, List, Optional
 
 from langchain_chroma import Chroma
@@ -10,6 +11,14 @@ from app.models.chunk import Chunk as ChunkModel
 from app.models.collection import Collection
 from app.models.document import Document as DocumentModel
 from app.services.llm_service import LLMFactory
+
+
+def highlight_text(text: str, query: str) -> str:
+    terms = query.strip().split()
+    if not terms:
+        return text
+    pattern = "|".join(re.escape(t) for t in terms)
+    return re.sub(f"({pattern})", r"<mark>\1</mark>", text, flags=re.IGNORECASE)
 
 
 class HybridRetriever:
@@ -83,9 +92,11 @@ class HybridRetriever:
         output = []
         for doc, score in results:
             did = doc.metadata.get("document_id", 0)
+            content = doc.page_content
             output.append({
                 "chunk_id": doc.metadata.get("chunk_id", doc.metadata.get("chunk_index", 0)),
-                "content": doc.page_content,
+                "content": content,
+                "highlight_content": highlight_text(content, query),
                 "score": float(score),
                 "document_id": did,
                 "filename": filenames.get(did, ""),
@@ -107,10 +118,10 @@ class HybridRetriever:
         for idx in top_indices:
             if scores[idx] <= 0:
                 continue
-            results.append({
-                **docs[idx],
-                "score": float(scores[idx]),
-            })
+            item = dict(docs[idx])
+            item["score"] = float(scores[idx])
+            item["highlight_content"] = highlight_text(item["content"], query)
+            results.append(item)
 
         return results
 

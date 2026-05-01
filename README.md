@@ -168,5 +168,14 @@ rag_kb/
 ## Docker 部署
 
 ```bash
+# 部署、启动
 docker compose up -d
+# 重新构建
+docker compose build
+# 停止服务但保留容器
+docker compose stop
+# 停止服务并删除容器
+docker compose down
+# 停止服务并删除容器 + 数据卷（会清空 knowledge.db 和 ChromaDB）
+docker compose down -v
 ```

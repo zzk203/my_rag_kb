@@ -2,6 +2,7 @@ import React from 'react'
 import { Card, Typography, Collapse, Tag, Space } from 'antd'
 import { UserOutlined, RobotOutlined, LinkOutlined } from '@ant-design/icons'
 import type { Message, SearchResult } from '../types'
+import HighlightedText from './HighlightedText'
 
 const { Text, Paragraph } = Typography
 
@@ -77,7 +78,7 @@ const ChatMessage: React.FC<Props> = ({ message }) => {
                       ellipsis={{ rows: 3, expandable: true }}
                       style={{ fontSize: 13, margin: 0 }}
                     >
-                      {s.content}
+                      <HighlightedText text={s.highlight_content || s.content} />
                     </Paragraph>
                   </Card>
                 )),

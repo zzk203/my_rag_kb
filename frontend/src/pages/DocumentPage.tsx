@@ -16,10 +16,12 @@ import {
   ReloadOutlined,
   FileTextOutlined,
   EyeOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import FileUpload from '../components/FileUpload'
+import HighlightedText from '../components/HighlightedText'
 import { useAppStore } from '../store/appStore'
-import { getDocuments, deleteDocument, reindexDocument, getDocumentChunks } from '../api/documents'
+import { getDocuments, deleteDocument, reindexDocument, getDocumentChunks, getDocumentDownloadUrl } from '../api/documents'
 import type { Document, Chunk } from '../types'
 
 const { Text } = Typography
@@ -36,6 +38,7 @@ const DocumentPage: React.FC = () => {
     chunks: [],
     title: '',
   })
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
 
   const loadDocs = async () => {
     if (!currentCollectionId) {
@@ -135,7 +138,7 @@ const DocumentPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 180,
+      width: 240,
       render: (_: unknown, record: Document) => (
         <Space>
           <Button
@@ -144,6 +147,13 @@ const DocumentPage: React.FC = () => {
             onClick={() => handleViewChunks(record.id, record.filename)}
           >
             分块
+          </Button>
+          <Button
+            size="small"
+            icon={<SearchOutlined />}
+            onClick={() => setPreviewDoc(record)}
+          >
+            预览
           </Button>
           <Button
             size="small"
@@ -218,6 +228,37 @@ const DocumentPage: React.FC = () => {
           </div>
         ))}
         {chunksModal.chunks.length === 0 && <Text type="secondary">暂无分块</Text>}
+      </Modal>
+
+      <Modal
+        title={previewDoc ? `预览 - ${previewDoc.filename}` : ''}
+        open={!!previewDoc}
+        onCancel={() => setPreviewDoc(null)}
+        footer={null}
+        width="80%"
+        style={{ top: 20 }}
+      >
+        {previewDoc && ['png', 'jpg', 'jpeg'].includes(previewDoc.file_type) ? (
+          <img
+            src={getDocumentDownloadUrl(previewDoc.id)}
+            alt={previewDoc.filename}
+            style={{ maxWidth: '100%', display: 'block', margin: '0 auto' }}
+          />
+        ) : previewDoc && ['md', 'txt', 'html', 'htm'].includes(previewDoc.file_type) ? (
+          <iframe
+            src={getDocumentDownloadUrl(previewDoc.id)}
+            style={{ width: '100%', minHeight: '70vh', border: 'none', background: '#fff' }}
+            title={previewDoc.filename}
+          />
+        ) : previewDoc && previewDoc.file_type === 'pdf' ? (
+          <iframe
+            src={getDocumentDownloadUrl(previewDoc.id)}
+            style={{ width: '100%', minHeight: '80vh', border: 'none' }}
+            title={previewDoc.filename}
+          />
+        ) : (
+          <Text type="secondary">不支持预览此文件类型</Text>
+        )}
       </Modal>
     </div>
   )

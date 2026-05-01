@@ -16,3 +16,6 @@ export const getConversationMessages = (id: number) =>
 
 export const deleteConversation = (id: number) =>
   api.delete(`/chat/conversations/${id}`).then((r) => r.data)
+
+export const renameConversation = (id: number, title: string) =>
+  api.put(`/chat/conversations/${id}`, { title }).then((r) => r.data)

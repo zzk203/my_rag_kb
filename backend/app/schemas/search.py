@@ -18,6 +18,7 @@ class SearchResultItem(BaseModel):
     document_id: int
     filename: str
     page_number: Optional[int] = None
+    highlight_content: str = ""
 
 
 class SearchResponse(BaseModel):

@@ -65,6 +65,7 @@ export interface SearchResult {
   document_id: number
   filename: string
   page_number?: number | null
+  highlight_content?: string
 }
 
 export interface ChatRequest {

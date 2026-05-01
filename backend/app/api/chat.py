@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.models.conversation import Conversation, Message
-from app.schemas.chat import ChatRequest, ChatResponse, ConversationOut, MessageOut
+from app.schemas.chat import ChatRequest, ChatResponse, ConversationOut, ConversationUpdate, MessageOut
 from app.services.qa_service import QAService
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -49,6 +49,18 @@ def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
         .all()
     )
     return messages
+
+
+@router.put("/conversations/{conversation_id}", response_model=ConversationOut)
+def rename_conversation(conversation_id: int, data: ConversationUpdate, db: Session = Depends(get_db)):
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conv:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    conv.title = data.title
+    db.commit()
+    db.refresh(conv)
+    return conv
 
 
 @router.delete("/conversations/{conversation_id}")

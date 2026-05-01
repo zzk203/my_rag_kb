@@ -12,6 +12,8 @@ class CollectionCreate(BaseModel):
     base_url: Optional[str] = None
     llm_model: str = "gpt-4o-mini"
     embedding_model: str = "text-embedding-3-small"
+    max_history: int = 6
+    ocr_enabled: bool = False
 
 
 class CollectionUpdate(BaseModel):
@@ -22,6 +24,8 @@ class CollectionUpdate(BaseModel):
     base_url: Optional[str] = None
     llm_model: Optional[str] = None
     embedding_model: Optional[str] = None
+    max_history: Optional[int] = None
+    ocr_enabled: Optional[bool] = None
 
 
 class CollectionOut(BaseModel):
@@ -33,6 +37,8 @@ class CollectionOut(BaseModel):
     base_url: Optional[str] = None
     llm_model: str
     embedding_model: str
+    max_history: int = 6
+    ocr_enabled: bool = False
     created_at: datetime
     updated_at: datetime
 

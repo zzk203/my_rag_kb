@@ -18,8 +18,9 @@ class DoclingParser:
 
     SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".pptx", ".md", ".txt", ".html", ".htm", ".png", ".jpg", ".jpeg"}
 
-    def __init__(self):
+    def __init__(self, ocr_enabled: bool = False):
         self._docling_converter = None
+        self.ocr_enabled = ocr_enabled
 
     def _get_converter(self):
         if self._docling_converter is None:

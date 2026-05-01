@@ -21,3 +21,6 @@ export const reindexDocument = (id: number) =>
 
 export const getDocumentChunks = (id: number) =>
   api.get<Chunk[]>(`/documents/${id}/chunks`).then((r) => r.data)
+
+export const getDocumentDownloadUrl = (id: number) =>
+  `/api/v1/documents/${id}/download`

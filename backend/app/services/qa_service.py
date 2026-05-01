@@ -37,10 +37,11 @@ class QAService:
             .order_by(Message.created_at)
             .all()
         )
+        max_history = getattr(collection, "max_history", 6) or 6
         history_text = ""
         if history:
             history_lines = []
-            for h in history[-6:]:
+            for h in history[-max_history:]:
                 role = "用户" if h.role == "user" else "助手"
                 history_lines.append(f"{role}: {h.content[:200]}")
             history_text = "\n".join(history_lines)
@@ -61,7 +62,12 @@ class QAService:
         self.db.add(msg)
 
         sources_json = json.dumps([
-            {"chunk_id": r["chunk_id"], "content": r["content"], "filename": r.get("filename", "")}
+            {
+                "chunk_id": r["chunk_id"],
+                "content": r["content"],
+                "highlight_content": r.get("highlight_content", ""),
+                "filename": r.get("filename", ""),
+            }
             for r in results
         ], ensure_ascii=False)
 

@@ -1,6 +1,9 @@
 from typing import List, Optional
 
+import os
+
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -143,3 +146,14 @@ def reindex_document(document_id: int, background_tasks: BackgroundTasks = None,
 def get_document_chunks(document_id: int, db: Session = Depends(get_db)):
     chunks = db.query(ChunkModel).filter(ChunkModel.document_id == document_id).order_by(ChunkModel.chunk_index).all()
     return chunks
+
+
+@router.get("/{document_id}/download")
+def download_document(document_id: int, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not os.path.exists(doc.file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    return FileResponse(doc.file_path, filename=doc.filename)

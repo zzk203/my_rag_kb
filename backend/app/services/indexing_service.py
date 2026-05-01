@@ -17,7 +17,6 @@ from app.services.splitter_service import TextSplitter
 
 class IndexingService:
     def __init__(self):
-        self.parser = DoclingParser()
         self.splitter = TextSplitter()
 
     def index_document(self, db: Session, collection: Collection, doc: DocumentModel, file_path: str):
@@ -25,7 +24,8 @@ class IndexingService:
         db.commit()
 
         try:
-            parsed_chunks = self.parser.parse(file_path)
+            parser = DoclingParser(ocr_enabled=bool(getattr(collection, "ocr_enabled", False)))
+            parsed_chunks = parser.parse(file_path)
 
             all_text = "\n\n".join(c.content for c in parsed_chunks if c.content.strip())
             if not all_text.strip():
