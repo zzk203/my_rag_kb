@@ -80,6 +80,7 @@ class QAService:
         )
         self.db.add(msg)
 
+        max_score = max((r.get("score", 0) for r in display_sources), default=0)
         sources_json = json.dumps([
             {
                 "source_index": r.get("source_index", i + 1),
@@ -90,6 +91,8 @@ class QAService:
                 "filename": r.get("filename", ""),
                 "document_id": r.get("document_id", 0),
                 "collection_id": r.get("collection_id", collection_id),
+                "score": r.get("score", 0),
+                "relevance_pct": round(r.get("score", 0) / max_score * 100) if max_score > 0 else 0,
             }
             for i, r in enumerate(display_sources)
         ], ensure_ascii=False)

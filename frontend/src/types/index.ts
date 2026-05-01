@@ -64,6 +64,7 @@ export interface SearchResult {
   chunk_id: number
   content: string
   score: number
+  relevance_pct?: number
   document_id: number
   filename: string
   page_number?: number | null

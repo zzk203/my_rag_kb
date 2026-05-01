@@ -73,31 +73,38 @@ const ChatMessage: React.FC<Props> = ({ message }) => {
                     </Text>
                   </Space>
                 ),
-                children: sources.map((s) => (
-                  <Card
-                    key={s.chunk_id}
-                    size="small"
-                    style={{ marginBottom: 6, fontSize: 13 }}
-                    title={
-                      <Space>
-                        <Text strong style={{ fontSize: 12 }}>来源 {s.source_index || s.id || '?'}</Text>
-                        <Tag
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => navigate(`/documents?collection_id=${s.collection_id || ''}&document_id=${s.document_id}`)}
-                        >
-                          {s.filename || '未知'}
-                        </Tag>
-                      </Space>
-                    }
-                  >
-                    <Paragraph
-                      ellipsis={{ rows: 3, expandable: true }}
-                      style={{ fontSize: 13, margin: 0 }}
+                children: sources.map((s) => {
+                  const relevance = s.relevance_pct ?? 0
+                  const relevanceColor = relevance > 70 ? '#52c41a' : relevance > 40 ? '#faad14' : '#ff4d4f'
+                  return (
+                    <Card
+                      key={s.chunk_id}
+                      size="small"
+                      style={{ marginBottom: 6, fontSize: 13 }}
+                      title={
+                        <Space>
+                          <Text strong style={{ fontSize: 12 }}>来源 {s.source_index || s.id || '?'}</Text>
+                          <span style={{ fontSize: 11, color: relevanceColor, fontWeight: 600 }}>
+                            {relevance}%
+                          </span>
+                          <Tag
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => navigate(`/documents?collection_id=${s.collection_id || ''}&document_id=${s.document_id}`)}
+                          >
+                            {s.filename || '未知'}
+                          </Tag>
+                        </Space>
+                      }
                     >
-                      <HighlightedText text={s.highlight_content || s.content} />
-                    </Paragraph>
-                  </Card>
-                )),
+                      <Paragraph
+                        ellipsis={{ rows: 3, expandable: true }}
+                        style={{ fontSize: 13, margin: 0 }}
+                      >
+                        <HighlightedText text={s.highlight_content || s.content} />
+                      </Paragraph>
+                    </Card>
+                  )
+                }),
               },
             ]}
           />
