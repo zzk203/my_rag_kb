@@ -33,8 +33,13 @@ class DoclingParser:
 
     def parse(self, file_path: str) -> List[ParsedChunk]:
         ext = Path(file_path).suffix.lower()
-        converter = self._get_converter()
 
+        if ext in {".png", ".jpg", ".jpeg"} and self.ocr_enabled:
+            ocr_result = self._parse_image(file_path)
+            if ocr_result and ocr_result[0].content and not ocr_result[0].content.startswith("[Image"):
+                return ocr_result
+
+        converter = self._get_converter()
         if converter:
             try:
                 return self._parse_with_docling(file_path)
@@ -65,19 +70,18 @@ class DoclingParser:
             return [ParsedChunk(content=f"Unsupported file type: {ext}")]
 
     def _parse_image(self, file_path: str) -> List[ParsedChunk]:
-        if self.ocr_enabled:
-            try:
-                import easyocr
-                reader = easyocr.Reader(["ch_sim", "en"])
-                result = reader.readtext(file_path, detail=0)
-                text = "\n".join(result)
-                if text.strip():
-                    return [ParsedChunk(content=text, metadata={"source": "ocr"})]
-            except ImportError:
-                pass
-            except Exception:
-                pass
-        return [ParsedChunk(content=f"[Image file: {Path(file_path).name}]")]
+        try:
+            import easyocr
+            reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
+            result = reader.readtext(file_path, detail=0)
+            text = "\n".join(result)
+            if text.strip():
+                return [ParsedChunk(content=text, metadata={"source": "ocr"})]
+        except ImportError:
+            return [ParsedChunk(content=f"[Image OCR failed: easyocr not installed. Run: pip install easyocr]")]
+        except Exception as e:
+            return [ParsedChunk(content=f"[Image OCR error: {e}]")]
+        return [ParsedChunk(content=f"[Image file: {Path(file_path).name} (OCR returned no text)]")]
 
     def _parse_pdf(self, file_path: str) -> List[ParsedChunk]:
         try:
