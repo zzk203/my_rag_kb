@@ -67,20 +67,18 @@ class QAService:
                 history_lines.append(f"{role}: {h.content[:200]}")
             history_text = "\n".join(history_lines)
 
+        msg = Message(conversation_id=conversation_id, role="user", content=query)
+        self.db.add(msg)
+        self.db.commit()
+
+        prompt = self._build_prompt(query, context, history_text)
+
         llm = LLMFactory.create_llm(
             collection.provider, collection.llm_model,
             api_key=collection.api_key, base_url=collection.base_url,
         )
-        prompt = self._build_prompt(query, context, history_text)
         answer = llm.invoke(prompt)
         answer_text = answer.content if hasattr(answer, "content") else str(answer)
-
-        msg = Message(
-            conversation_id=conversation_id,
-            role="user",
-            content=query,
-        )
-        self.db.add(msg)
 
         max_score = max((r.get("score", 0) for r in display_sources), default=0)
         sources_json = json.dumps([
