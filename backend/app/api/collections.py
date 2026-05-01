@@ -9,6 +9,7 @@ from app.models.collection import Collection
 from app.models.document import Document
 from app.models.chunk import Chunk
 from app.schemas.collection import CollectionCreate, CollectionOut, CollectionStats, CollectionUpdate
+from app.config import settings
 from app.services.indexing_service import IndexingService
 
 indexing_service = IndexingService()
@@ -25,6 +26,10 @@ def list_collections(db: Session = Depends(get_db)):
 def create_collection(data: CollectionCreate, db: Session = Depends(get_db)):
     values = data.model_dump()
     values["provider"] = values.get("provider") or "openai"
+    if not values.get("llm_model"):
+        values["llm_model"] = settings.openai_model
+    if not values.get("embedding_model"):
+        values["embedding_model"] = settings.embedding_model
     collection = Collection(**values)
     db.add(collection)
     db.commit()
