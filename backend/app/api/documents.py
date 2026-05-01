@@ -102,6 +102,12 @@ def delete_document(document_id: int, db: Session = Depends(get_db)):
     if collection:
         indexing_service.delete_document_vectors(db, collection, document_id)
 
+    try:
+        if os.path.exists(doc.file_path):
+            os.remove(doc.file_path)
+    except Exception:
+        pass
+
     db.delete(doc)
     db.commit()
     return {"ok": True}

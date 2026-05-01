@@ -108,6 +108,21 @@ class IndexingService:
         except Exception as e:
             db.rollback()
 
+    def clear_collection_vectors(self, db: Session, collection: Collection):
+        try:
+            embeddings = LLMFactory.create_embeddings(
+                collection.provider, collection.embedding_model,
+                api_key=collection.api_key, base_url=collection.base_url,
+            )
+            vectorstore = Chroma(
+                collection_name=f"collection_{collection.id}",
+                embedding_function=embeddings,
+                persist_directory=settings.vector_store_dir,
+            )
+            vectorstore.delete_collection()
+        except Exception:
+            pass
+
     def get_or_create_collection_vectorstore(self, collection: Collection) -> Chroma:
         embeddings = LLMFactory.create_embeddings(
             collection.provider, collection.embedding_model,

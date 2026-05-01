@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 from fastapi import APIRouter, Depends
@@ -8,6 +9,9 @@ from app.models.collection import Collection
 from app.models.document import Document
 from app.models.chunk import Chunk
 from app.schemas.collection import CollectionCreate, CollectionOut, CollectionStats, CollectionUpdate
+from app.services.indexing_service import IndexingService
+
+indexing_service = IndexingService()
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 
@@ -58,6 +62,22 @@ def delete_collection(collection_id: int, db: Session = Depends(get_db)):
     if not collection:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Collection not found")
+
+    docs = db.query(Document).filter(Document.collection_id == collection_id).all()
+    for doc in docs:
+        try:
+            if os.path.exists(doc.file_path):
+                os.remove(doc.file_path)
+        except Exception:
+            pass
+
+    try:
+        indexing_service.clear_collection_vectors(db, collection)
+    except Exception:
+        pass
+
+    db.query(Chunk).filter(Chunk.document_id.in_([d.id for d in docs])).delete(synchronize_session=False)
+    db.query(Document).filter(Document.collection_id == collection_id).delete(synchronize_session=False)
     db.delete(collection)
     db.commit()
     return {"ok": True}
