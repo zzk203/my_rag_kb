@@ -10,8 +10,8 @@ class CollectionCreate(BaseModel):
     provider: Optional[str] = None
     api_key: Optional[str] = None
     base_url: Optional[str] = None
-    llm_model: str = "gpt-4o-mini"
-    embedding_model: str = "text-embedding-3-small"
+    llm_model: Optional[str] = None
+    embedding_model: Optional[str] = None
     max_history: int = 6
     ocr_enabled: bool = False
 

@@ -36,6 +36,7 @@ docker compose up -d
 - 文档上传使用 FastAPI `BackgroundTasks` 异步索引，不阻塞响应。
 - 创建知识库时 `provider` 可选，为空默认 `"openai"`。
 - 每个知识库可独立配置 `api_key` / `base_url` / `llm_model` / `embedding_model`。
+- 创建知识库时 `llm_model` / `embedding_model` 留空（不传或空字符串）自动继承 `.env` 的全局值，不保留硬编码默认值。
 - 不填继承 `.env` 全局值。
 - **索引时必须将 `chunk.id`（DB 主键）写入 ChromaDB 元数据**，否则向量检索和关键词检索的 chunk_id 不匹配，RRF 融合会错乱。详见 `indexing_service.py` 的 `split_doc.metadata["chunk_id"] = cr.id` 部分。
 - **检索结果必须查询 Document 表填充 filename**。ChromaDB 不存储文件名，`retrieval_service.py` 中 `_vector_search` 需通过 `document_id` 回查 DB。
