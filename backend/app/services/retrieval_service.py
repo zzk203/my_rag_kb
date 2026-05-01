@@ -93,8 +93,10 @@ class HybridRetriever:
         for doc, score in results:
             did = doc.metadata.get("document_id", 0)
             content = doc.page_content
+            chunk_index = doc.metadata.get("chunk_index", 0)
             output.append({
-                "chunk_id": doc.metadata.get("chunk_id", doc.metadata.get("chunk_index", 0)),
+                "chunk_id": doc.metadata.get("chunk_id", chunk_index),
+                "id": chunk_index,
                 "content": content,
                 "highlight_content": highlight_text(content, query),
                 "score": float(score),
@@ -154,6 +156,7 @@ class HybridRetriever:
                 pass
             docs.append({
                 "chunk_id": c.id,
+                "id": c.chunk_index,
                 "content": c.content,
                 "document_id": c.document_id,
                 "filename": filenames.get(c.document_id, ""),

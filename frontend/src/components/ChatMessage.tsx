@@ -73,17 +73,17 @@ const ChatMessage: React.FC<Props> = ({ message }) => {
                     </Text>
                   </Space>
                 ),
-                children: sources.map((s, i) => (
+                children: sources.map((s) => (
                   <Card
-                    key={i}
+                    key={s.chunk_id}
                     size="small"
                     style={{ marginBottom: 6, fontSize: 13 }}
                     title={
                       <Space>
-                        <Text strong style={{ fontSize: 12 }}>来源 {i + 1}</Text>
+                        <Text strong style={{ fontSize: 12 }}>来源 {s.source_index || s.id || '?'}</Text>
                         <Tag
                           style={{ cursor: 'pointer' }}
-                          onClick={() => navigate(`/documents?collection_id=${(s as any).collection_id || ''}&document_id=${s.document_id}`)}
+                          onClick={() => navigate(`/documents?collection_id=${s.collection_id || ''}&document_id=${s.document_id}`)}
                         >
                           {s.filename || '未知'}
                         </Tag>

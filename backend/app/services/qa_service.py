@@ -10,17 +10,36 @@ from app.services.llm_service import LLMFactory
 from app.services.retrieval_service import HybridRetriever
 
 
+RELEVANCE_THRESHOLD = 0.05
+
+
 class QAService:
     def __init__(self, db: Session):
         self.db = db
         self.retriever = HybridRetriever(db)
 
-    def ask(self, collection_id: int, query: str, conversation_id: Optional[int] = None, top_k: int = 5) -> dict:
+    def _filter_and_rank(self, results: list) -> list:
+        if not results:
+            return []
+
+        max_score = max(r.get("score", 0) for r in results)
+        if max_score <= 0:
+            return results[:10]
+
+        filtered = [r for r in results if r.get("score", 0) >= max_score * RELEVANCE_THRESHOLD]
+
+        for i, r in enumerate(filtered):
+            r["source_index"] = i + 1
+
+        return filtered[:10]
+
+    def ask(self, collection_id: int, query: str, conversation_id: Optional[int] = None, top_k: int = 10) -> dict:
         collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
         if not collection:
             raise ValueError(f"Collection {collection_id} not found")
 
-        results = self.retriever.search(query, collection, top_k=top_k)
+        raw_results = self.retriever.search(query, collection, top_k=top_k)
+        display_sources = self._filter_and_rank(raw_results)
 
         if not conversation_id:
             conv = Conversation(collection_id=collection_id, title=query[:50])
@@ -29,7 +48,7 @@ class QAService:
             self.db.refresh(conv)
             conversation_id = conv.id
 
-        context = "\n\n".join(f"[来源 {i + 1}]: {r['content']}" for i, r in enumerate(results))
+        context = "\n\n".join(f"[来源 {r['source_index']}]: {r['content']}" for r in display_sources)
 
         history = (
             self.db.query(Message)
@@ -61,9 +80,10 @@ class QAService:
         )
         self.db.add(msg)
 
-        display_sources = [dict(r, collection_id=collection_id) for r in results[:3]]
         sources_json = json.dumps([
             {
+                "source_index": r.get("source_index", i + 1),
+                "id": r.get("id", i),
                 "chunk_id": r["chunk_id"],
                 "content": r["content"],
                 "highlight_content": r.get("highlight_content", ""),
@@ -71,7 +91,7 @@ class QAService:
                 "document_id": r.get("document_id", 0),
                 "collection_id": r.get("collection_id", collection_id),
             }
-            for r in display_sources
+            for i, r in enumerate(display_sources)
         ], ensure_ascii=False)
 
         answer_msg = Message(

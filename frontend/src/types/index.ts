@@ -59,6 +59,8 @@ export interface SearchRequest {
 }
 
 export interface SearchResult {
+  source_index?: number
+  id?: number
   chunk_id: number
   content: string
   score: number
@@ -66,6 +68,7 @@ export interface SearchResult {
   filename: string
   page_number?: number | null
   highlight_content?: string
+  collection_id?: number
 }
 
 export interface ChatRequest {

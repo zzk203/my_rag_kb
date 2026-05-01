@@ -120,6 +120,7 @@ const DocumentPage: React.FC = () => {
       title: '文件名',
       dataIndex: 'filename',
       key: 'filename',
+      sorter: (a: Document, b: Document) => a.filename.localeCompare(b.filename),
       render: (v: string) => (
         <Space>
           <FileTextOutlined />
@@ -132,12 +133,14 @@ const DocumentPage: React.FC = () => {
       dataIndex: 'file_type',
       key: 'file_type',
       width: 80,
+      sorter: (a: Document, b: Document) => a.file_type.localeCompare(b.file_type),
     },
     {
       title: '大小',
       dataIndex: 'file_size',
       key: 'file_size',
       width: 100,
+      sorter: (a: Document, b: Document) => a.file_size - b.file_size,
       render: (v: number) => (v > 1024 ? `${(v / 1024).toFixed(1)} KB` : `${v} B`),
     },
     {
@@ -145,6 +148,7 @@ const DocumentPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
+      sorter: (a: Document, b: Document) => a.status.localeCompare(b.status),
       render: (v: string, record: Document) => {
         const color =
           v === 'ready' ? 'green' : v === 'error' ? 'red' : v === 'processing' ? 'blue' : 'default'
@@ -160,6 +164,7 @@ const DocumentPage: React.FC = () => {
       dataIndex: 'chunk_count',
       key: 'chunk_count',
       width: 80,
+      sorter: (a: Document, b: Document) => a.chunk_count - b.chunk_count,
     },
     {
       title: '操作',
