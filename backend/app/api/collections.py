@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.models.collection import Collection
+from app.models.conversation import Conversation, Message
 from app.models.document import Document
 from app.models.chunk import Chunk
 from app.schemas.collection import CollectionCreate, CollectionOut, CollectionStats, CollectionUpdate
@@ -80,6 +81,11 @@ def delete_collection(collection_id: int, db: Session = Depends(get_db)):
         indexing_service.clear_collection_vectors(db, collection)
     except Exception:
         pass
+
+    conv_ids = [c.id for c in db.query(Conversation).filter(Conversation.collection_id == collection_id).all()]
+    for cid in conv_ids:
+        db.query(Message).filter(Message.conversation_id == cid).delete(synchronize_session=False)
+    db.query(Conversation).filter(Conversation.collection_id == collection_id).delete(synchronize_session=False)
 
     db.query(Chunk).filter(Chunk.document_id.in_([d.id for d in docs])).delete(synchronize_session=False)
     db.query(Document).filter(Document.collection_id == collection_id).delete(synchronize_session=False)

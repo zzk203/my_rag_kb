@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Typography, Collapse, Tag, Space } from 'antd'
 import { UserOutlined, RobotOutlined, LinkOutlined } from '@ant-design/icons'
 import type { Message, SearchResult } from '../types'
@@ -20,6 +21,7 @@ const ThinkingDots: React.FC = () => {
 }
 
 const ChatMessage: React.FC<Props> = ({ message }) => {
+  const navigate = useNavigate()
   const isUser = message.role === 'user'
 
   let sources: SearchResult[] = []
@@ -79,7 +81,12 @@ const ChatMessage: React.FC<Props> = ({ message }) => {
                     title={
                       <Space>
                         <Text strong style={{ fontSize: 12 }}>来源 {i + 1}</Text>
-                        <Tag>{s.filename || '未知'}</Tag>
+                        <Tag
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => navigate(`/documents?collection_id=${(s as any).collection_id || ''}&document_id=${s.document_id}`)}
+                        >
+                          {s.filename || '未知'}
+                        </Tag>
                       </Space>
                     }
                   >

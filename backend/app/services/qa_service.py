@@ -61,14 +61,17 @@ class QAService:
         )
         self.db.add(msg)
 
+        display_sources = [dict(r, collection_id=collection_id) for r in results[:3]]
         sources_json = json.dumps([
             {
                 "chunk_id": r["chunk_id"],
                 "content": r["content"],
                 "highlight_content": r.get("highlight_content", ""),
                 "filename": r.get("filename", ""),
+                "document_id": r.get("document_id", 0),
+                "collection_id": r.get("collection_id", collection_id),
             }
-            for r in results
+            for r in display_sources
         ], ensure_ascii=False)
 
         answer_msg = Message(
@@ -83,7 +86,7 @@ class QAService:
 
         return {
             "answer": answer_text,
-            "sources": results,
+            "sources": display_sources,
             "conversation_id": conversation_id,
             "message_id": answer_msg.id,
         }

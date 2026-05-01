@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Table,
   Select,
@@ -27,6 +28,7 @@ import type { Document, Chunk } from '../types'
 const { Text } = Typography
 
 const DocumentPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
   const collections = useAppStore((s) => s.collections)
   const currentCollectionId = useAppStore((s) => s.currentCollectionId)
   const setCurrentCollection = useAppStore((s) => s.setCurrentCollection)
@@ -41,6 +43,28 @@ const DocumentPage: React.FC = () => {
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
   const [previewContent, setPreviewContent] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const highlightDocId = searchParams.get('document_id') ? Number(searchParams.get('document_id')) : null
+  const urlCollectionId = searchParams.get('collection_id') ? Number(searchParams.get('collection_id')) : null
+  useEffect(() => {
+    if (urlCollectionId && urlCollectionId !== currentCollectionId) {
+      setCurrentCollection(urlCollectionId)
+    }
+  }, [urlCollectionId])
+
+  useEffect(() => {
+    if (highlightDocId && docs.length > 0) {
+      setTimeout(() => {
+        const el = document.querySelector('.highlight-row')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }, [docs])
+
+  useEffect(() => {
+    if (highlightDocId) {
+      setSearchParams({}, { replace: true })
+    }
+  }, [highlightDocId])
 
   const loadDocs = async () => {
     if (!currentCollectionId) {
@@ -211,7 +235,21 @@ const DocumentPage: React.FC = () => {
         loading={loading}
         pagination={{ pageSize: 20, showSizeChanger: false }}
         locale={{ emptyText: currentCollectionId ? '暂无文档，请上传' : '请先选择知识库' }}
+        rowClassName={(record) => record.id === highlightDocId ? 'highlight-row' : ''}
       />
+      <style>{`
+        .highlight-row {
+          background-color: #fff7e6 !important;
+          animation: fadeHighlight 3s ease-out;
+        }
+        .highlight-row td {
+          background-color: #fff7e6 !important;
+        }
+        @keyframes fadeHighlight {
+          from { background-color: #ffd591; }
+          to { background-color: #fff7e6; }
+        }
+      `}</style>
 
       <Modal
         title={`分块列表 - ${chunksModal.title}`}
