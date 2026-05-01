@@ -9,18 +9,20 @@
 | 后端 | FastAPI, SQLAlchemy, SQLite |
 | 向量库 | ChromaDB（增量索引、元数据过滤） |
 | 文档解析 | Docling + pypdf / python-docx / python-pptx |
+| 图片 OCR | EasyOCR（可选，按知识库开关） |
 | 检索 | BM25 关键词 + 向量语义 + RRF 融合 |
 | LLM | OpenAI 兼容 API / Ollama（本地） |
+| Embedding | 支持与 LLM 不同供应商，独立配置 provider/key/url |
 
 ## 功能特性
 
 - **多格式文档**: PDF / DOCX / PPTX / Markdown / TXT / HTML / 图片
 - **增量索引**: 新增文档自动索引，删除文档同步清理向量
 - **混合检索**: BM25 关键词 + ChromaDB 向量 + RRF 排序融合
-- **RAG 问答**: 带来源引用的 LLM 问答，支持多轮对话
-- **知识库分类**: 多个知识库独立管理，可配置不同模型
+- **RAG 问答**: 带来源引用的 LLM 问答，支持多轮对话，结果高亮
+- **知识库分类**: 多个知识库独立管理，可配置不同模型和供应商
 - **REST API**: 完整 CRUD + 搜索 + 问答接口
-- **双模 LLM**: 同时支持云端 API 和本地 Ollama
+- **LLM & Embedding 解耦**: LLM 和 Embedding 可使用不同供应商和 API Key
 
 ## 快速开始
 
@@ -33,6 +35,25 @@ cp .env.example backend/.env
 
 > `.env` 文件位于 `backend/` 目录下。`config.py` 会自动从 `backend/.env` 加载，
 > 若不存在则尝试从项目根目录加载。Docker 部署时由 Compose 注入环境变量。
+
+### .env 参考
+
+```ini
+# LLM 配置
+OPENAI_API_KEY=sk-xxx
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+
+# Embedding 配置（留空继承 LLM 的 OPENAI_API_KEY / OPENAI_BASE_URL）
+EMBEDDING_MODEL=text-embedding-3-small
+# EMBEDDING_API_KEY=sk-xxx
+# EMBEDDING_BASE_URL=https://api.openai.com/v1
+
+# 文档分块
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+TOP_K=5
+```
 
 ### 2. 安装
 
@@ -73,7 +94,7 @@ curl -X POST http://localhost:8000/api/v1/collections \
   -H "Content-Type: application/json" \
   -d '{"name":"技术文档"}'
 
-# 创建使用智谱 GLM 的知识库（每个库可独立配置）
+# LLM 和 Embedding 使用同一供应商
 curl -X POST http://localhost:8000/api/v1/collections \
   -H "Content-Type: application/json" \
   -d '{
@@ -83,6 +104,18 @@ curl -X POST http://localhost:8000/api/v1/collections \
     "base_url":"https://open.bigmodel.cn/api/paas/v4",
     "llm_model":"glm-4.7-flash",
     "embedding_model":"embedding-3"
+  }'
+
+# LLM 用云端 API，Embedding 用本地 Ollama（不同供应商）
+curl -X POST http://localhost:8000/api/v1/collections \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name":"混合供应商库",
+    "provider":"openai",
+    "api_key":"sk-openai",
+    "llm_model":"gpt-4o-mini",
+    "embedding_provider":"ollama",
+    "embedding_model":"bge-m3"
   }'
 
 # 上传文档
@@ -100,7 +133,7 @@ curl -X POST http://localhost:8000/api/v1/chat \
   -d '{"query":"什么是RAG","collection_id":1}'
 ```
 
-> `.env` 中的 `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` / `EMBEDDING_MODEL` 是全局默认值。新建知识库若不指定自己的 API Key 和 Base URL，则继承这些默认值。每个知识库的 `api_key` 在响应中会被脱敏处理。
+> `.env` 中的配置是全局默认值。新建知识库时，`llm_model` / `embedding_model` 留空自动继承 `.env` 对应值。`embedding_provider` / `embedding_api_key` / `embedding_base_url` 留空时继承链为：**用户填写 → `.env` Embedding 专属 → `.env` LLM 配置**。例如 embedding_api_key 的优先级：`collection.embedding_api_key > EMBEDDING_API_KEY > collection.api_key > OPENAI_API_KEY`。
 
 ## 项目结构
 
@@ -120,7 +153,7 @@ rag_kb/
 │   │   │   ├── qa_service.py        # RAG 问答
 │   │   │   └── llm_service.py       # LLM 工厂
 │   │   ├── api/                  # REST API 路由
-│   │   └── tasks/                # 后台任务
+│   │   └── tasks/                # 后台任务（BackgroundTasks）
 │   ├── data/                     # 运行时数据
 │   │   ├── uploads/              # 上传文件
 │   │   ├── chroma/               # ChromaDB 持久化
@@ -157,6 +190,8 @@ rag_kb/
 | `PUT` | `/api/v1/documents/{id}` | 更新文档标签 |
 | `DELETE` | `/api/v1/documents/{id}` | 删除文档（同步清理向量） |
 | `POST` | `/api/v1/documents/{id}/reindex` | 重新索引文档 |
+| `GET` | `/api/v1/documents/{id}/download` | 下载文档原文 |
+| `GET` | `/api/v1/documents/{id}/content` | 获取文档纯文本内容 |
 | `GET` | `/api/v1/documents/{id}/chunks` | 查看文档分块 |
 | `POST` | `/api/v1/search` | 混合搜索（支持 hybrid / vector / keyword） |
 | `POST` | `/api/v1/chat` | RAG 问答（支持多轮对话） |
