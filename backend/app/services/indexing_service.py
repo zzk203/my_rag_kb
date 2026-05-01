@@ -109,17 +109,13 @@ class IndexingService:
             db.rollback()
 
     def clear_collection_vectors(self, db: Session, collection: Collection):
+        import chromadb
         try:
-            embeddings = LLMFactory.create_embeddings(
-                collection.provider, collection.embedding_model,
-                api_key=collection.api_key, base_url=collection.base_url,
-            )
-            vectorstore = Chroma(
-                collection_name=f"collection_{collection.id}",
-                embedding_function=embeddings,
-                persist_directory=settings.vector_store_dir,
-            )
-            vectorstore.delete_collection()
+            client = chromadb.PersistentClient(path=settings.vector_store_dir)
+            coll_name = f"collection_{collection.id}"
+            existing = [c.name for c in client.list_collections()]
+            if coll_name in existing:
+                client.delete_collection(coll_name)
         except Exception:
             pass
 
