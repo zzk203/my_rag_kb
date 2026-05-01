@@ -109,13 +109,31 @@ class IndexingService:
             db.rollback()
 
     def clear_collection_vectors(self, db: Session, collection: Collection):
+        import os, shutil
         import chromadb
+        import sqlite3
         try:
             client = chromadb.PersistentClient(path=settings.vector_store_dir)
             coll_name = f"collection_{collection.id}"
             existing = [c.name for c in client.list_collections()]
             if coll_name in existing:
                 client.delete_collection(coll_name)
+
+            active_segments = set()
+            sqlite_path = os.path.join(settings.vector_store_dir, "chroma.sqlite3")
+            if os.path.exists(sqlite_path):
+                try:
+                    conn = sqlite3.connect(sqlite_path)
+                    rows = conn.execute("SELECT id FROM segments").fetchall()
+                    active_segments = {row[0] for row in rows}
+                    conn.close()
+                except Exception:
+                    pass
+
+            for entry in os.listdir(settings.vector_store_dir):
+                dir_path = os.path.join(settings.vector_store_dir, entry)
+                if os.path.isdir(dir_path) and entry not in active_segments:
+                    shutil.rmtree(dir_path, ignore_errors=True)
         except Exception:
             pass
 
