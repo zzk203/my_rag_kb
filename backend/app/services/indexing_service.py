@@ -42,8 +42,8 @@ class IndexingService:
             embeddings = LLMFactory.create_embeddings(
                 collection.embedding_provider or collection.provider,
                 collection.embedding_model,
-                api_key=collection.embedding_api_key or collection.api_key,
-                base_url=collection.embedding_base_url or collection.base_url,
+                api_key=collection.embedding_api_key or settings.embedding_api_key or collection.api_key,
+                base_url=collection.embedding_base_url or settings.embedding_base_url or collection.base_url,
             )
             vectorstore = Chroma(
                 collection_name=f"collection_{collection.id}",
@@ -91,8 +91,8 @@ class IndexingService:
             embeddings = LLMFactory.create_embeddings(
                 collection.embedding_provider or collection.provider,
                 collection.embedding_model,
-                api_key=collection.embedding_api_key or collection.api_key,
-                base_url=collection.embedding_base_url or collection.base_url,
+                api_key=collection.embedding_api_key or settings.embedding_api_key or collection.api_key,
+                base_url=collection.embedding_base_url or settings.embedding_base_url or collection.base_url,
             )
             vectorstore = Chroma(
                 collection_name=f"collection_{collection.id}",
@@ -145,8 +145,8 @@ class IndexingService:
         embeddings = LLMFactory.create_embeddings(
             collection.embedding_provider or collection.provider,
             collection.embedding_model,
-            api_key=collection.embedding_api_key or collection.api_key,
-            base_url=collection.embedding_base_url or collection.base_url,
+            api_key=collection.embedding_api_key or settings.embedding_api_key or collection.api_key,
+            base_url=collection.embedding_base_url or settings.embedding_base_url or collection.base_url,
         )
         return Chroma(
             collection_name=f"collection_{collection.id}",
