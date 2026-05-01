@@ -21,7 +21,7 @@ import {
 import FileUpload from '../components/FileUpload'
 import HighlightedText from '../components/HighlightedText'
 import { useAppStore } from '../store/appStore'
-import { getDocuments, deleteDocument, reindexDocument, getDocumentChunks, getDocumentDownloadUrl } from '../api/documents'
+import { getDocuments, deleteDocument, reindexDocument, getDocumentChunks, getDocumentDownloadUrl, getDocumentContent } from '../api/documents'
 import type { Document, Chunk } from '../types'
 
 const { Text } = Typography
@@ -39,6 +39,8 @@ const DocumentPage: React.FC = () => {
     title: '',
   })
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null)
+  const [previewContent, setPreviewContent] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const loadDocs = async () => {
     if (!currentCollectionId) {
@@ -151,7 +153,19 @@ const DocumentPage: React.FC = () => {
           <Button
             size="small"
             icon={<SearchOutlined />}
-            onClick={() => setPreviewDoc(record)}
+            onClick={async () => {
+              setPreviewDoc(record)
+              if (['md', 'txt', 'html', 'htm'].includes(record.file_type)) {
+                setPreviewLoading(true)
+                try {
+                  const text = await getDocumentContent(record.id)
+                  setPreviewContent(text)
+                } catch { setPreviewContent('(加载失败)') }
+                setPreviewLoading(false)
+              } else {
+                setPreviewContent(null)
+              }
+            }}
           >
             预览
           </Button>
@@ -233,7 +247,7 @@ const DocumentPage: React.FC = () => {
       <Modal
         title={previewDoc ? `预览 - ${previewDoc.filename}` : ''}
         open={!!previewDoc}
-        onCancel={() => setPreviewDoc(null)}
+        onCancel={() => { setPreviewDoc(null); setPreviewContent(null) }}
         footer={null}
         width="80%"
         style={{ top: 20 }}
@@ -244,17 +258,29 @@ const DocumentPage: React.FC = () => {
             alt={previewDoc.filename}
             style={{ maxWidth: '100%', display: 'block', margin: '0 auto' }}
           />
-        ) : previewDoc && ['md', 'txt', 'html', 'htm'].includes(previewDoc.file_type) ? (
-          <iframe
-            src={getDocumentDownloadUrl(previewDoc.id)}
-            style={{ width: '100%', minHeight: '70vh', border: 'none', background: '#fff' }}
-            title={previewDoc.filename}
-          />
         ) : previewDoc && previewDoc.file_type === 'pdf' ? (
           <iframe
             src={getDocumentDownloadUrl(previewDoc.id)}
             style={{ width: '100%', minHeight: '80vh', border: 'none' }}
             title={previewDoc.filename}
+          />
+        ) : previewDoc && ['md', 'txt'].includes(previewDoc.file_type) ? (
+          <div
+            style={{
+              padding: 16, background: '#fafafa', borderRadius: 4,
+              maxHeight: '70vh', overflow: 'auto', whiteSpace: 'pre-wrap',
+              fontSize: 14, lineHeight: 1.7,
+            }}
+          >
+            {previewLoading ? <Text type="secondary">加载中…</Text> : previewContent}
+          </div>
+        ) : previewDoc && ['html', 'htm'].includes(previewDoc.file_type) ? (
+          <div
+            style={{
+              padding: 16, background: '#fff', borderRadius: 4,
+              maxHeight: '70vh', overflow: 'auto', fontSize: 14,
+            }}
+            dangerouslySetInnerHTML={{ __html: previewContent || '' }}
           />
         ) : (
           <Text type="secondary">不支持预览此文件类型</Text>

@@ -1,9 +1,10 @@
+import mimetypes
 from typing import List, Optional
 
 import os
 
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -156,4 +157,20 @@ def download_document(document_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Document not found")
     if not os.path.exists(doc.file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
-    return FileResponse(doc.file_path, filename=doc.filename)
+    media_type, _ = mimetypes.guess_type(doc.filename)
+    return FileResponse(doc.file_path, filename=doc.filename,
+                        media_type=media_type or "application/octet-stream",
+                        content_disposition_type="inline")
+
+
+@router.get("/{document_id}/content")
+def get_document_content(document_id: int, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not os.path.exists(doc.file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    with open(doc.file_path, "r", encoding="utf-8", errors="replace") as f:
+        content = f.read()
+    return Response(content=content, media_type="text/plain; charset=utf-8")

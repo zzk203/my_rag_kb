@@ -59,8 +59,25 @@ class DoclingParser:
             return self._parse_text(file_path)
         elif ext in {".html", ".htm"}:
             return self._parse_html(file_path)
+        elif ext in {".png", ".jpg", ".jpeg"}:
+            return self._parse_image(file_path)
         else:
             return [ParsedChunk(content=f"Unsupported file type: {ext}")]
+
+    def _parse_image(self, file_path: str) -> List[ParsedChunk]:
+        if self.ocr_enabled:
+            try:
+                import easyocr
+                reader = easyocr.Reader(["ch_sim", "en"])
+                result = reader.readtext(file_path, detail=0)
+                text = "\n".join(result)
+                if text.strip():
+                    return [ParsedChunk(content=text, metadata={"source": "ocr"})]
+            except ImportError:
+                pass
+            except Exception:
+                pass
+        return [ParsedChunk(content=f"[Image file: {Path(file_path).name}]")]
 
     def _parse_pdf(self, file_path: str) -> List[ParsedChunk]:
         try:

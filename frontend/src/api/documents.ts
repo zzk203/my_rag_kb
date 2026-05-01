@@ -24,3 +24,6 @@ export const getDocumentChunks = (id: number) =>
 
 export const getDocumentDownloadUrl = (id: number) =>
   `/api/v1/documents/${id}/download`
+
+export const getDocumentContent = (id: number) =>
+  api.get<string>(`/documents/${id}/content`).then((r) => r.data)

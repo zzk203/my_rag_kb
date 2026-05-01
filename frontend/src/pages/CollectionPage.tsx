@@ -9,7 +9,9 @@ import {
   Modal,
   Form,
   Input,
+  InputNumber,
   Select,
+  Switch,
   message as antMsg,
   Statistic,
   Popconfirm,
@@ -198,6 +200,12 @@ const CollectionPage: React.FC = () => {
           </Form.Item>
           <Form.Item name="embedding_model" label="Embedding 模型">
             <Input placeholder="如: text-embedding-3-small" />
+          </Form.Item>
+          <Form.Item name="max_history" label="历史对话轮数">
+            <InputNumber min={0} max={50} style={{ width: '100%' }} placeholder="默认 6" />
+          </Form.Item>
+          <Form.Item name="ocr_enabled" label="OCR 识别" valuePropName="checked">
+            <Switch />
           </Form.Item>
         </Form>
       </Modal>
