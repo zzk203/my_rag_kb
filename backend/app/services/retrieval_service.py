@@ -1,11 +1,9 @@
 import math
-
-import json
 import re
 from typing import Any, Dict, List, Optional
 
 from langchain_chroma import Chroma
-from rank_bm25 import BM25Okapi
+from langchain_community.retrievers import BM25Retriever
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -21,20 +19,21 @@ try:
 except ImportError:
     _has_jieba = False
 
+VECTOR_MIN_SIMILARITY = 0.3
+BM25_MIN_RATIO = 0.05
+
 
 def _tokenize(text: str) -> List[str]:
     if _has_jieba:
         return [t for t in jieba.cut(text) if t.strip()]
     return text.split()
 
-_bm25_cache: Dict[int, BM25Okapi] = {}
-_bm25_docs: Dict[int, List[dict]] = {}
+_bm25_cache: Dict[int, BM25Retriever] = {}
 _vectorstore_cache: Dict[int, Chroma] = {}
 
 
 def invalidate_bm25_cache(collection_id: int):
     _bm25_cache.pop(collection_id, None)
-    _bm25_docs.pop(collection_id, None)
 
 
 def invalidate_vectorstore_cache(collection_id: int):
@@ -55,11 +54,6 @@ def _get_cached_vectorstore(collection: Collection) -> Chroma:
             persist_directory=settings.vector_store_dir,
         )
     return _vectorstore_cache[collection.id]
-
-
-def invalidate_bm25_cache(collection_id: int):
-    _bm25_cache.pop(collection_id, None)
-    _bm25_docs.pop(collection_id, None)
 
 
 def highlight_text(text: str, query: str) -> str:
@@ -86,10 +80,10 @@ class HybridRetriever:
         keyword_results = []
 
         if search_type in ("hybrid", "vector"):
-            vector_results = self._vector_search(query, collection, top_k=top_k * 3, filters=filters)
+            vector_results = self._vector_search(query, collection, top_k=top_k * 3, filters=filters, min_score=VECTOR_MIN_SIMILARITY)
 
         if search_type in ("hybrid", "keyword"):
-            keyword_results = self._keyword_search(query, collection.id, top_k=top_k * 3)
+            keyword_results = self._keyword_search(query, collection.id, top_k=top_k * 3, min_normalized_score=BM25_MIN_RATIO)
 
         if search_type == "vector":
             return self._deduplicate(vector_results)[:top_k]
@@ -105,6 +99,7 @@ class HybridRetriever:
         collection: Collection,
         top_k: int,
         filters: Optional[Dict[str, Any]] = None,
+        min_score: Optional[float] = None,
     ) -> List[dict]:
         vectorstore = _get_cached_vectorstore(collection)
 
@@ -134,12 +129,15 @@ class HybridRetriever:
             did = doc.metadata.get("document_id", 0)
             content = doc.page_content
             chunk_index = doc.metadata.get("chunk_index", 0)
+            similarity = 1.0 - float(score) / math.sqrt(2)
+            if min_score is not None and similarity < min_score:
+                continue
             output.append({
                 "chunk_id": doc.metadata.get("chunk_id", chunk_index),
                 "id": chunk_index,
                 "content": content,
                 "highlight_content": highlight_text(content, query),
-                "score": 1.0 - float(score) / math.sqrt(2),  # l2 距离 → [0,1] 相似度
+                "score": similarity,
                 "document_id": did,
                 "filename": filenames.get(did, ""),
                 "page_number": doc.metadata.get("page_number"),
@@ -147,30 +145,59 @@ class HybridRetriever:
 
         return output
 
-    def _keyword_search(self, query: str, collection_id: int, top_k: int) -> List[dict]:
-        bm25, docs = self._get_bm25(collection_id)
-        if bm25 is None or not docs:
+    @log_timing("BM25关键词检索")
+    def _keyword_search(self, query: str, collection_id: int, top_k: int,
+                        min_normalized_score: Optional[float] = None) -> List[dict]:
+        retriever = self._get_bm25_retriever(collection_id)
+        if retriever is None:
+            import logging
+            logging.getLogger(__name__).warning(f"[BM25] collection {collection_id}: 无可用分块")
             return []
 
-        tokenized_query = _tokenize(query)
-        scores = bm25.get_scores(tokenized_query)
+        tokenized_query = retriever.preprocess_func(query)
+        scores = retriever.vectorizer.get_scores(tokenized_query)
+        max_score = max(scores) if len(scores) > 0 else 0.0
         top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
 
         results = []
         for idx in top_indices:
             if scores[idx] <= 0:
                 continue
-            item = dict(docs[idx])
-            item["score"] = float(scores[idx])
+            doc = retriever.docs[idx]
+            item = {
+                "chunk_id": doc.metadata.get("chunk_id", idx),
+                "id": doc.metadata.get("id", idx),
+                "content": doc.page_content,
+                "score": float(scores[idx]),
+                "document_id": doc.metadata.get("document_id", 0),
+                "filename": doc.metadata.get("filename", ""),
+                "page_number": doc.metadata.get("page_number"),
+                "chunk_index": doc.metadata.get("chunk_index", 0),
+            }
             item["highlight_content"] = highlight_text(item["content"], query)
             results.append(item)
 
+        if min_normalized_score is not None and results:
+            max_score = max(r["score"] for r in results)
+            if max_score > 0:
+                for r in results:
+                    r["score"] = r["score"] / max_score
+                results = [r for r in results if r["score"] >= min_normalized_score]
+            else:
+                results = []
+
+        if not results:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"[BM25] collection {collection_id}: 所有分块 BM25 得分为 0，"
+                f"查询分词: {tokenized_query}, "
+                f"最高分: {max_score:.4f}"
+            )
         return results
 
-    @log_timing("BM25关键词检索")
-    def _get_bm25(self, collection_id: int):
+    def _get_bm25_retriever(self, collection_id: int) -> Optional[BM25Retriever]:
         if collection_id in _bm25_cache:
-            return _bm25_cache[collection_id], _bm25_docs[collection_id]
+            return _bm25_cache[collection_id]
 
         chunks = (
             self.db.query(ChunkModel)
@@ -180,7 +207,7 @@ class HybridRetriever:
         )
 
         if not chunks:
-            return None, []
+            return None
 
         doc_ids = set(c.document_id for c in chunks)
         filenames = {}
@@ -188,30 +215,25 @@ class HybridRetriever:
             docs = self.db.query(DocumentModel).filter(DocumentModel.id.in_(doc_ids)).all()
             filenames = {d.id: d.filename for d in docs}
 
-        docs = []
-        for c in chunks:
-            meta = {}
-            try:
-                meta = json.loads(c.meta_json)
-            except (json.JSONDecodeError, TypeError):
-                pass
-            docs.append({
-                "chunk_id": c.id,
-                "id": c.chunk_index,
-                "content": c.content,
-                "document_id": c.document_id,
-                "filename": filenames.get(c.document_id, ""),
-                "page_number": c.page_number,
-                "chunk_index": c.chunk_index,
-            })
+        metadatas = [{
+            "chunk_id": c.id,
+            "id": c.chunk_index,
+            "document_id": c.document_id,
+            "filename": filenames.get(c.document_id, ""),
+            "page_number": c.page_number,
+            "chunk_index": c.chunk_index,
+        } for c in chunks]
 
-        tokenized_corpus = [_tokenize(d["content"]) for d in docs]
-        bm25 = BM25Okapi(tokenized_corpus)
+        texts = [c.content for c in chunks]
 
-        _bm25_cache[collection_id] = bm25
-        _bm25_docs[collection_id] = docs
+        retriever = BM25Retriever.from_texts(
+            texts=texts,
+            metadatas=metadatas,
+            preprocess_func=_tokenize,
+        )
 
-        return bm25, docs
+        _bm25_cache[collection_id] = retriever
+        return retriever
 
     @log_timing("RRF融合")
     def _rrf_merge(self, vector_results: List[dict], keyword_results: List[dict], top_k: int, k: int = 60) -> List[dict]:

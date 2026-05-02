@@ -20,6 +20,7 @@ def chat(data: ChatRequest, db: Session = Depends(get_db)):
             query=data.query,
             conversation_id=data.conversation_id,
             top_k=data.top_k,
+            search_type=data.search_type,
         )
         return ChatResponse(
             answer=result["answer"],

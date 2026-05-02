@@ -17,7 +17,7 @@ class Collection(Base):
     embedding_base_url = Column(Text, nullable=True)
     llm_model = Column(String, default="gpt-4o-mini")
     embedding_model = Column(String, default="text-embedding-3-small")
-    max_history = Column(Integer, default=6)
     ocr_enabled = Column(Boolean, default=False)
+    search_type = Column(String, default="hybrid")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

@@ -1,4 +1,5 @@
 import os
+import threading
 from typing import List
 
 from fastapi import APIRouter, Depends
@@ -43,6 +44,9 @@ def create_collection(data: CollectionCreate, db: Session = Depends(get_db)):
     db.add(collection)
     db.commit()
     db.refresh(collection)
+    if collection.ocr_enabled:
+        from app.services.parser_service import _get_easyocr_reader
+        threading.Thread(target=_get_easyocr_reader, daemon=True).start()
     return collection
 
 

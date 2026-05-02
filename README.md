@@ -18,7 +18,7 @@
 
 - **多格式文档**: PDF / DOCX / PPTX / Markdown / TXT / HTML / 图片
 - **增量索引**: 新增文档自动索引，删除文档同步清理向量
-- **混合检索**: BM25 关键词 + ChromaDB 向量 + RRF 排序融合
+- **混合检索**: BM25 关键词 + ChromaDB 向量 + RRF 排序融合，融合前各自按阈值过滤低质量结果
 - **RAG 问答**: 带来源引用的 LLM 问答，支持多轮对话，结果高亮
 - **知识库分类**: 多个知识库独立管理，可配置不同模型和供应商
 - **REST API**: 完整 CRUD + 搜索 + 问答接口
@@ -102,7 +102,7 @@ docker compose up -d
 # 创建知识库（不指定模型则使用 .env 默认值）
 curl -X POST http://localhost:8000/api/v1/collections \
   -H "Content-Type: application/json" \
-  -d '{"name":"技术文档"}'
+  -d '{"name":"技术文档","ocr_enabled":true}'
 
 # LLM 和 Embedding 使用同一供应商
 curl -X POST http://localhost:8000/api/v1/collections \
@@ -144,6 +144,8 @@ curl -X POST http://localhost:8000/api/v1/chat \
 ```
 
 > `.env` 中的配置是全局默认值。新建知识库时，`llm_model` / `embedding_model` 留空自动继承 `.env` 对应值。`embedding_provider` / `embedding_api_key` / `embedding_base_url` 留空时继承链为：**用户填写 → `.env` Embedding 专属 → `.env` LLM 配置**。例如 embedding_api_key 的优先级：`collection.embedding_api_key > EMBEDDING_API_KEY > collection.api_key > OPENAI_API_KEY`。
+>
+> **OCR 预加载**：创建知识库时若 `ocr_enabled=true`，后台线程自动预加载 EasyOCR 模型，避免首次上传图片时等待 10-30 秒加载。
 
 ## 项目结构
 

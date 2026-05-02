@@ -8,8 +8,8 @@ export interface Collection {
   embedding_model: string
   has_custom_key: boolean
   has_embedding_key: boolean
-  max_history: number
   ocr_enabled: boolean
+  search_type: string
   created_at: string
   updated_at: string
 }
@@ -25,6 +25,7 @@ export interface CollectionCreate {
   embedding_base_url?: string | null
   llm_model?: string
   embedding_model?: string
+  search_type?: string
 }
 
 export interface CollectionStats {
@@ -83,6 +84,7 @@ export interface ChatRequest {
   collection_id: number
   conversation_id?: number | null
   top_k?: number
+  search_type?: 'hybrid' | 'vector' | 'keyword'
 }
 
 export interface ChatResponse {

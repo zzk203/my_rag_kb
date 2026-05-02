@@ -9,7 +9,6 @@ import {
   Modal,
   Form,
   Input,
-  InputNumber,
   Select,
   Switch,
   message as antMsg,
@@ -228,8 +227,20 @@ const CollectionPage: React.FC = () => {
           </Form.Item>
 
           <Divider orientation="left" plain>其他</Divider>
-          <Form.Item name="max_history" label="历史对话轮数">
-            <InputNumber min={0} max={50} style={{ width: '100%' }} placeholder="默认 6" />
+          <Form.Item
+            name="search_type"
+            label="检索方式"
+            initialValue="hybrid"
+            rules={[{ required: true, message: '请选择检索方式' }]}
+          >
+            <Select
+              options={[
+                { label: '混合检索 (向量 + BM25)', value: 'hybrid' },
+                { label: 'BM25 关键词检索', value: 'keyword' },
+                { label: '向量检索', value: 'vector' },
+              ]}
+              placeholder="请选择检索方式"
+            />
           </Form.Item>
           <Form.Item name="ocr_enabled" label="OCR 识别" valuePropName="checked">
             <Switch />

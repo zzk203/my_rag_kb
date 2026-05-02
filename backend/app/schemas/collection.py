@@ -15,8 +15,8 @@ class CollectionCreate(BaseModel):
     embedding_base_url: Optional[str] = Field(default=None, max_length=500)
     llm_model: Optional[str] = Field(default=None, max_length=100)
     embedding_model: Optional[str] = Field(default=None, max_length=100)
-    max_history: int = Field(default=6, ge=0, le=50)
     ocr_enabled: bool = False
+    search_type: Literal["hybrid", "vector", "keyword"] = "hybrid"
 
 
 class CollectionUpdate(BaseModel):
@@ -30,8 +30,8 @@ class CollectionUpdate(BaseModel):
     embedding_base_url: Optional[str] = Field(default=None, max_length=500)
     llm_model: Optional[str] = Field(default=None, max_length=100)
     embedding_model: Optional[str] = Field(default=None, max_length=100)
-    max_history: Optional[int] = Field(default=None, ge=0, le=50)
     ocr_enabled: Optional[bool] = None
+    search_type: Optional[Literal["hybrid", "vector", "keyword"]] = None
 
 
 class CollectionOut(BaseModel):
@@ -44,8 +44,8 @@ class CollectionOut(BaseModel):
     embedding_model: str
     has_custom_key: bool = False
     has_embedding_key: bool = False
-    max_history: int = 6
     ocr_enabled: bool = False
+    search_type: str = "hybrid"
     created_at: datetime
     updated_at: datetime
 

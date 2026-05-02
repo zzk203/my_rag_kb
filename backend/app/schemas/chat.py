@@ -11,6 +11,7 @@ class ChatRequest(BaseModel):
     collection_id: int
     conversation_id: Optional[int] = None
     top_k: int = Field(default=5, ge=1, le=50)
+    search_type: Optional[Literal["hybrid", "vector", "keyword"]] = None
 
 
 class ChatResponse(BaseModel):

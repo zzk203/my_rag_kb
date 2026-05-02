@@ -43,14 +43,20 @@ docker compose up -d
 - **检索结果必须查询 Document 表填充 filename**。ChromaDB 不存储文件名，`_vector_search` 需通过 `document_id` 回查 DB。
 - **reindex 期间禁止重复操作**：文档 status 为 `processing` 时返回 409。reindex 接口同步将状态设为 `processing` 再调 BackgroundTasks，防止快速双击。
 - RRF 融合默认常数 `k=60`。`_rrf_merge` 中 keyword 结果的 `items[cid]` 会覆盖 vector 结果的同名 chunk（因 keyword 后处理），RRF score 仅用于排序。
-- **RRF 融合后会将融合分数写回 `r["score"]`**，覆盖原始异构分数（ChromaDB l2 距离 → 已转为 [0,1] 相似度 + BM25 分数已归一化）。
-- **`relevance_pct` 使用绝对相关性计算**：`min(rrf_score / RRF_THEORETICAL_MAX, 1.0) * 100`，`RRF_THEORETICAL_MAX = 2.0 / (k + 1)`。排除了纯相对百分比导致不相关文档也显示高百分比的 bug。
-- **低相关性过滤**：`_filter_and_rank` 中当 `max_rrf < ABSOLUTE_MIN_SCORE` 时直接返回空，避免对所有无关结果返回高置信度。
+- **RRF 融合后会将融合分数写回 `r["score"]`**，覆盖原始分数。
+- **检索方式必选**：创建知识库时 `search_type` 为必填项（`"hybrid"` / `"vector"` / `"keyword"`）。对话 API（`ChatRequest`）可通过 `search_type` 参数覆盖知识库默认值。优先级：请求参数 > 知识库配置 > `"hybrid"`。
+- **相关性计算按检索方式分策略**（`qa_service.py:calc_relevance_pct`）：
+  | 检索方式 | 分数范围 | 相关度公式 | 过滤阈值 |
+  |----------|----------|------------|----------|
+  | hybrid | RRF [0, ~0.033] | `min(score / 0.03279, 1.0) * 100` | score < 0.01 丢弃 |
+  | vector | 余弦相似度 [0, 1] | `min(score, 1.0) * 100` | score < 0.3 丢弃 |
+  | keyword | BM25 原始分（归一化到 [0,1]）| `min(score, 1.0) * 100` | 归一化后 < 0.05 丢弃 |
+- **LLM 回复"知识库中未找到相关信息"时自动清空来源**：`qa_service.py` 在拿到 LLM 回答后检测该短语，若匹配则 `display_sources = []`，前端不展示任何来源。
 - `highlight_text()` 用 `<mark>` 标签做关键词高亮。
 - `IndexingService.cleanup_orphan_segments()` 读取 Chroma 内部 SQLite 的 `segments` 表清理孤儿目录。
 - 创建知识库时 `llm_model` / `embedding_model` 留空自动继承 `.env` 的全局值，不保留硬编码默认值。
 - LLM 与 Embedding 可配置不同 `provider`。Embedding 专属配置 (embedding_provider/api_key/base_url) 继承链为：**用户填写 → `.env` Embedding 专属 → `.env` LLM 配置**。
-- `RELEVANCE_THRESHOLD = 0.05`（`qa_service.py`），过滤低于 `max_score * 5%` 的来源。
+- **每次提问仅基于当前问题检索**，不再拼接历史对话（`max_history` 及对话历史拼接逻辑已全部移除）。`Collection` 模型中已无 `max_history` 字段。
 - LangChain 版本严格锁定 `langchain>=0.2.0,<0.3.0`。`langchain-ollama` 不是硬依赖，在代码中 `try/except ImportError` 可选导入。
 
 ### 测试
@@ -96,12 +102,13 @@ npm run test:e2e:report                     # 查看 HTML 报告（含截图/视
 
 ## 性能与缓存
 
-- **BM25 缓存**：`retrieval_service.py` 模块级全局字典（`_bm25_cache` / `_bm25_docs`），首次检索时构建，后续复用。索引/删除时通过 `invalidate_bm25_cache(collection_id)` 刷新。
+- **BM25 缓存**：`retrieval_service.py` 模块级全局字典（`_bm25_cache: Dict[int, BM25Retriever]`），首次检索时构建，后续复用。BM25Retriever 内部持有文档列表和 vectorizer。索引/删除时通过 `invalidate_bm25_cache(collection_id)` 刷新。
+- **BM25 实现**：使用 `langchain_community.retrievers.BM25Retriever`（底层依赖 `rank_bm25`），通过 `preprocess_func=_tokenize` 传入 jieba 中文分词。查询时通过 `retriever.vectorizer.get_scores()` 获取原始 BM25 分数，在 `_filter_and_rank` 中归一化到 [0,1]。
 - **向量存储缓存**：`retrieval_service.py` 模块级全局字典（`_vectorstore_cache`），避免每次检索重新创建 Chroma/Embeddings 对象。索引/删除时通过 `invalidate_vectorstore_cache(collection_id)` 刷新。
 - **模型单例**：Docling `DocumentConverter` 和 EasyOCR `Reader` 改为模块级单例（双重检查锁），避免每次解析重加载模型。
 - **DB 索引**：`documents.collection_id`、`chunks.document_id`、`conversations.collection_id`、`messages.conversation_id` 均设 `index=True`，Documents 增加复合索引 `idx_collection_filehash`。
 - **批量 DELETE**：删除知识库时消息清理使用 `in_()` 批量操作，避免 N+1。
-- **中文分词**：BM25 使用 jieba 分词（`_tokenize()`），自动回退 `str.split()`。依赖 `jieba>=0.42`。
+- **中文分词**：BM25 使用 jieba 分词（`_tokenize()`），若未安装 `jieba>=0.42` 会**静默回退到 `str.split()`**，导致中文文本无空格被当成单一 token，BM25 检索完全失效（所有查询得分为 0）。务必确保 jieba 已安装。
 
 ## 安全
 
