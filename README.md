@@ -23,6 +23,10 @@
 - **知识库分类**: 多个知识库独立管理，可配置不同模型和供应商
 - **REST API**: 完整 CRUD + 搜索 + 问答接口
 - **LLM & Embedding 解耦**: LLM 和 Embedding 可使用不同供应商和 API Key
+- **Debug 模式**: `DEBUG=true` 环境变量开启性能计时日志
+- **E2E 测试**: Playwright 自动化测试框架（13 用例）
+- **文档来源跳转**: 问答回复中的来源可点击跳转到文档页并高亮定位
+- **安全防护**: SSRF 拦截（内网地址黑名单）+ 文件类型白名单 + 大小限制
 
 ## 快速开始
 
@@ -69,6 +73,12 @@ pip install -r requirements.txt
 cd backend
 uvicorn app.main:app --reload
 # API 文档: http://localhost:8000/docs
+```
+
+**后端（Debug 模式，输出性能日志）：**
+```bash
+cd backend
+DEBUG=true uvicorn app.main:app --reload --log-level debug
 ```
 
 **前端（开发模式）：**
@@ -153,7 +163,10 @@ rag_kb/
 │   │   │   ├── qa_service.py        # RAG 问答
 │   │   │   └── llm_service.py       # LLM 工厂
 │   │   ├── api/                  # REST API 路由
-│   │   └── tasks/                # 后台任务（BackgroundTasks）
+│   │   ├── tasks/                # 后台任务（BackgroundTasks）
+│   │   └── utils/                # 工具
+│   │       ├── logging_config.py # Debug 日志 + 性能计时装饰器
+│   │       └── url_validator.py  # SSRF 防护（base_url 校验）
 │   ├── data/                     # 运行时数据
 │   │   ├── uploads/              # 上传文件
 │   │   ├── chroma/               # ChromaDB 持久化
@@ -167,6 +180,12 @@ rag_kb/
 │   │   ├── api/                  # API 调用封装
 │   │   ├── store/                # zustand 状态管理
 │   │   └── types/                # TypeScript 类型定义
+│   ├── tests/                    # Playwright E2E 测试
+│   │   ├── fixtures.ts           # 共享 fixture + 测试文件准备
+│   │   ├── knowledge-base.spec.ts
+│   │   ├── document-upload.spec.ts
+│   │   └── chat-search.spec.ts
+│   ├── playwright.config.ts
 │   ├── package.json
 │   └── Dockerfile
 ├── docker-compose.yml
@@ -199,6 +218,17 @@ rag_kb/
 | `GET` | `/api/v1/chat/conversations/{id}` | 对话详情 |
 | `DELETE` | `/api/v1/chat/conversations/{id}` | 删除对话 |
 | `GET` | `/health` | 健康检查 |
+
+## E2E 测试
+
+```bash
+cd frontend
+npm run test:e2e                            # 终端运行 13 个用例
+npm run test:e2e:ui                         # 可视化 UI 模式
+npm run test:e2e:report                     # 查看 HTML 报告（含截图/视频）
+```
+
+测试覆盖：知识库 CRUD、文档上传（含非法类型拒绝、重复检测）、搜索验证、对话流程、来源跳转高亮。
 
 ## Docker 部署
 

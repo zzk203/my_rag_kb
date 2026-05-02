@@ -10,6 +10,9 @@ pip install -r requirements.txt
 rm -f data/knowledge.db      # schema 变更时需删除重建
 uvicorn app.main:app --reload
 
+# 后端 Debug 模式（输出性能计时日志）
+DEBUG=true uvicorn app.main:app --reload --log-level debug
+
 # 前端
 cd frontend
 npm install
@@ -40,6 +43,9 @@ docker compose up -d
 - **检索结果必须查询 Document 表填充 filename**。ChromaDB 不存储文件名，`_vector_search` 需通过 `document_id` 回查 DB。
 - **reindex 期间禁止重复操作**：文档 status 为 `processing` 时返回 409。reindex 接口同步将状态设为 `processing` 再调 BackgroundTasks，防止快速双击。
 - RRF 融合默认常数 `k=60`。`_rrf_merge` 中 keyword 结果的 `items[cid]` 会覆盖 vector 结果的同名 chunk（因 keyword 后处理），RRF score 仅用于排序。
+- **RRF 融合后会将融合分数写回 `r["score"]`**，覆盖原始异构分数（ChromaDB l2 距离 → 已转为 [0,1] 相似度 + BM25 分数已归一化）。
+- **`relevance_pct` 使用绝对相关性计算**：`min(rrf_score / RRF_THEORETICAL_MAX, 1.0) * 100`，`RRF_THEORETICAL_MAX = 2.0 / (k + 1)`。排除了纯相对百分比导致不相关文档也显示高百分比的 bug。
+- **低相关性过滤**：`_filter_and_rank` 中当 `max_rrf < ABSOLUTE_MIN_SCORE` 时直接返回空，避免对所有无关结果返回高置信度。
 - `highlight_text()` 用 `<mark>` 标签做关键词高亮。
 - `IndexingService.cleanup_orphan_segments()` 读取 Chroma 内部 SQLite 的 `segments` 表清理孤儿目录。
 - 创建知识库时 `llm_model` / `embedding_model` 留空自动继承 `.env` 的全局值，不保留硬编码默认值。
@@ -57,6 +63,38 @@ rm -f data/knowledge.db && python test_api.py
 - 使用 `fastapi.testclient.TestClient`，无 pytest。函数按执行顺序定义，`main()` 串行调用。
 - upload 测试已跳过（BackgroundTasks 调用外部 API 导致 TestClient hang）。
 - `Base.metadata.create_all(bind=engine)` 在 `from app.main import app` **之前**调用。
+
+### E2E 测试
+
+```bash
+cd frontend
+npm run test:e2e                            # 终端运行 13 个用例
+npm run test:e2e:ui                         # 可视化 UI 模式
+npm run test:e2e:report                     # 查看 HTML 报告（含截图/视频）
+```
+
+- 使用 Playwright + Chromium，配置文件：`frontend/playwright.config.ts`。
+- 测试自动启动后端（uvicorn + fresh DB）和前端（vite dev）作为 webserver。
+- 覆盖：知识库 CRUD、文档上传（非法类型/重复检测）、搜索验证、对话问答、来源跳转高亮。
+- fixtures.ts 自动在 `tests/test-files/` 创建测试用文件。
+
+## 性能与缓存
+
+- **BM25 缓存**：`retrieval_service.py` 模块级全局字典（`_bm25_cache` / `_bm25_docs`），首次检索时构建，后续复用。索引/删除时通过 `invalidate_bm25_cache(collection_id)` 刷新。
+- **向量存储缓存**：`retrieval_service.py` 模块级全局字典（`_vectorstore_cache`），避免每次检索重新创建 Chroma/Embeddings 对象。索引/删除时通过 `invalidate_vectorstore_cache(collection_id)` 刷新。
+- **模型单例**：Docling `DocumentConverter` 和 EasyOCR `Reader` 改为模块级单例（双重检查锁），避免每次解析重加载模型。
+- **DB 索引**：`documents.collection_id`、`chunks.document_id`、`conversations.collection_id`、`messages.conversation_id` 均设 `index=True`，Documents 增加复合索引 `idx_collection_filehash`。
+- **批量 DELETE**：删除知识库时消息清理使用 `in_()` 批量操作，避免 N+1。
+- **中文分词**：BM25 使用 jieba 分词（`_tokenize()`），自动回退 `str.split()`。依赖 `jieba>=0.42`。
+
+## 安全
+
+- **API Key 不泄露**：`CollectionOut` schema 不包含 `api_key`/`embedding_api_key`/`base_url`，仅返回 `has_custom_key`/`has_embedding_key` 布尔标记。
+- **SSRF 防护**：`utils/url_validator.py` 校验 base_url 目标地址，拦截 localhost 和内网 IP 段（10/172/192/169.254/127/0.0.0.0）。
+- **CORS**：`allow_origins` 从 `CORS_ORIGINS` 环境变量读取（默认 `http://localhost:3000`），禁止 `*`。
+- **文件上传校验**：扩展名白名单（`DoclingParser.SUPPORTED_EXTENSIONS`）+ 50MB 大小限制（`MAX_FILE_SIZE`）。
+- **错误脱敏**：索引失败和对话异常不再返回原始 `str(e)`，改为通用错误文案 + `logging.exception` 内部记录。
+- **Pydantic 约束**：Schema 增加 `Field(min_length/max_length)` 和 `Literal` 白名单限制输入。
 
 ## 前端
 
