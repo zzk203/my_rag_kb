@@ -13,7 +13,7 @@ uvicorn app.main:app --reload
 # 前端
 cd frontend
 npm install
-npm run dev                  # 代理 /api → localhost:8000
+npm run dev                  # Vite 代理 /api → localhost:8000
 
 # Docker
 docker compose up -d
@@ -23,7 +23,8 @@ docker compose up -d
 
 - 系统 sqlite3 = 3.31，ChromaDB 要求 ≥ 3.35。
 - `backend/app/__init__.py` 用 `pysqlite3-binary` 覆写 `sqlite3` 模块。
-- 任何 import chromadb 之前必须执行此覆写。
+- 任何 `import chromadb` 之前必须执行此覆写。`test_api.py` 顶部也做了同样的覆写。
+- test_api.py 在 import app 前设 fake env vars (`OPENAI_API_KEY`, `OPENAI_BASE_URL`)，不依赖真实 key。
 
 ## .env 加载
 
@@ -32,16 +33,19 @@ docker compose up -d
 
 ## 后端
 
-- API 入口：`backend/app/main.py`
-- 文档上传使用 FastAPI `BackgroundTasks` 异步索引，不阻塞响应。
-- 创建知识库时 `provider` 可选，为空默认 `"openai"`。
-- 每个知识库可独立配置 `api_key` / `base_url` / `llm_model` / `embedding_model` / `embedding_provider` / `embedding_api_key` / `embedding_base_url`。
-- 创建知识库时 `llm_model` / `embedding_model` 留空（不传或空字符串）自动继承 `.env` 的全局值，不保留硬编码默认值。
-- LLM 与 Embedding 可配置不同 `provider`（如 LLM 用 OpenAI，Embedding 用 Ollama）。Embedding 专属的 `embedding_provider`/`embedding_api_key`/`embedding_base_url` 留空时自动继承 LLM 的同名配置。
-- **索引时必须将 `chunk.id`（DB 主键）写入 ChromaDB 元数据**，否则向量检索和关键词检索的 chunk_id 不匹配，RRF 融合会错乱。详见 `indexing_service.py` 的 `split_doc.metadata["chunk_id"] = cr.id` 部分。
-- **检索结果必须查询 Document 表填充 filename**。ChromaDB 不存储文件名，`retrieval_service.py` 中 `_vector_search` 需通过 `document_id` 回查 DB。
+- API 入口：`backend/app/main.py`，所有路由挂 `/api/v1` 前缀。
+- 文档上传使用 FastAPI `BackgroundTasks` 异步索引，不阻塞响应。`schedule_indexing()` 传参给 `index_document_background`，后者必须使用独立 `SessionLocal()` 创建 session。
+- Chroma collection 命名：`collection_{collection.id}`。
+- **索引时必须将 `chunk.id`（DB 主键）写入 ChromaDB 元数据**（`split_doc.metadata["chunk_id"] = cr.id`），否则向量检索和关键词检索的 chunk_id 不匹配，RRF 融合会错乱。
+- **检索结果必须查询 Document 表填充 filename**。ChromaDB 不存储文件名，`_vector_search` 需通过 `document_id` 回查 DB。
 - **reindex 期间禁止重复操作**：文档 status 为 `processing` 时返回 409。reindex 接口同步将状态设为 `processing` 再调 BackgroundTasks，防止快速双击。
-- **BackgroundTasks 中的 session 必须独立创建**：`tasks/index_task.py` 中 `index_document_background` 使用 `SessionLocal()`，不能复用请求中的 db session。
+- RRF 融合默认常数 `k=60`。`_rrf_merge` 中 keyword 结果的 `items[cid]` 会覆盖 vector 结果的同名 chunk（因 keyword 后处理），RRF score 仅用于排序。
+- `highlight_text()` 用 `<mark>` 标签做关键词高亮。
+- `IndexingService.cleanup_orphan_segments()` 读取 Chroma 内部 SQLite 的 `segments` 表清理孤儿目录。
+- 创建知识库时 `llm_model` / `embedding_model` 留空自动继承 `.env` 的全局值，不保留硬编码默认值。
+- LLM 与 Embedding 可配置不同 `provider`。Embedding 专属配置 (embedding_provider/api_key/base_url) 继承链为：**用户填写 → `.env` Embedding 专属 → `.env` LLM 配置**。
+- `RELEVANCE_THRESHOLD = 0.05`（`qa_service.py`），过滤低于 `max_score * 5%` 的来源。
+- LangChain 版本严格锁定 `langchain>=0.2.0,<0.3.0`。`langchain-ollama` 不是硬依赖，在代码中 `try/except ImportError` 可选导入。
 
 ### 测试
 
@@ -49,6 +53,10 @@ docker compose up -d
 cd backend
 rm -f data/knowledge.db && python test_api.py
 ```
+
+- 使用 `fastapi.testclient.TestClient`，无 pytest。函数按执行顺序定义，`main()` 串行调用。
+- upload 测试已跳过（BackgroundTasks 调用外部 API 导致 TestClient hang）。
+- `Base.metadata.create_all(bind=engine)` 在 `from app.main import app` **之前**调用。
 
 ## 前端
 
@@ -61,31 +69,6 @@ rm -f data/knowledge.db && python test_api.py
 
 ```bash
 cd frontend
-npx tsc --noEmit            # 类型检查
-npx vite build              # 生产构建
-```
-
-## Playwright 测试注意事项
-
-- **不要混用 curl API 调用和 UI 断言**，避免历史数据干扰。
-- 测试上传流时：click "选择文件" → upload 文件 → click "上 传" → 断言表格中出现文档。
-- 浏览器会话结束后 `.playwright-cli/` 应清理，已加入 `.gitignore`。
-- **Playwright 测试前先删数据库 `backend/data/`**，确保无残留数据。
-
-## 项目结构
-
-```
-rag_kb/
-├── backend/app/        # FastAPI 后端
-│   ├── models/         # SQLAlchemy ORM
-│   ├── schemas/        # Pydantic 请求响应
-│   ├── services/       # 业务逻辑
-│   ├── api/            # REST 路由
-│   └── tasks/          # BackgroundTasks
-├── frontend/src/       # React 前端
-│   ├── api/            # axios 封装
-│   ├── components/     # 公共组件
-│   ├── pages/          # 页面
-│   └── store/          # zustand
-└── docker-compose.yml  # 前后端编排
+npx tsc --noEmit            # 类型检查（noUnusedLocals=false，宽松）
+npx vite build              # 生产构建（package.json 中 build = tsc && vite build）
 ```
