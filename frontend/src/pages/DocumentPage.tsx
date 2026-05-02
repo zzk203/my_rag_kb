@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
+  Alert,
   Table,
   Select,
   Button,
@@ -45,6 +46,7 @@ const DocumentPage: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState(false)
   const highlightDocId = searchParams.get('document_id') ? Number(searchParams.get('document_id')) : null
   const urlCollectionId = searchParams.get('collection_id') ? Number(searchParams.get('collection_id')) : null
+  const [showHighlightBanner, setShowHighlightBanner] = useState(false)
   useEffect(() => {
     if (urlCollectionId && urlCollectionId !== currentCollectionId) {
       setCurrentCollection(urlCollectionId)
@@ -53,18 +55,13 @@ const DocumentPage: React.FC = () => {
 
   useEffect(() => {
     if (highlightDocId && docs.length > 0) {
+      setShowHighlightBanner(true)
       setTimeout(() => {
         const el = document.querySelector('.highlight-row')
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 100)
+      }, 300)
     }
   }, [docs])
-
-  useEffect(() => {
-    if (highlightDocId) {
-      setSearchParams({}, { replace: true })
-    }
-  }, [highlightDocId])
 
   const loadDocs = async () => {
     if (!currentCollectionId) {
@@ -227,6 +224,19 @@ const DocumentPage: React.FC = () => {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        {showHighlightBanner && highlightDocId && (
+          <Alert
+            type="warning"
+            message={`已定位到文档：${docs.find(d => d.id === highlightDocId)?.filename || '未知'}`}
+            banner
+            closable
+            style={{ marginBottom: 12 }}
+            onClose={() => {
+              setShowHighlightBanner(false)
+              setSearchParams({}, { replace: true })
+            }}
+          />
+        )}
         <Text strong style={{ fontSize: 18 }}>
           文档管理
         </Text>
@@ -255,15 +265,15 @@ const DocumentPage: React.FC = () => {
       />
       <style>{`
         .highlight-row {
-          background-color: #fff7e6 !important;
+          background-color: #fff1b8 !important;
           animation: fadeHighlight 3s ease-out;
         }
         .highlight-row td {
-          background-color: #fff7e6 !important;
+          background-color: #fff1b8 !important;
         }
         @keyframes fadeHighlight {
           from { background-color: #ffd591; }
-          to { background-color: #fff7e6; }
+          to { background-color: #fff1b8; }
         }
       `}</style>
 

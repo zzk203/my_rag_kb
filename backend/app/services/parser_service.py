@@ -33,7 +33,7 @@ def _get_easyocr_reader():
         with _easyocr_reader_lock:
             if _easyocr_reader is None:
                 import easyocr
-                _easyocr_reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
+                _easyocr_reader = easyocr.Reader(["ch_sim", "en"], gpu=True)
     return _easyocr_reader
 
 

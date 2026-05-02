@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     embedding_api_key: Optional[str] = None
     embedding_base_url: Optional[str] = None
 
+    debug: bool = False
+
     chunk_size: int = 1000
     chunk_overlap: int = 200
     top_k: int = 5

@@ -8,9 +8,12 @@ from app.models.collection import Collection
 from app.models.conversation import Conversation, Message
 from app.services.llm_service import LLMFactory
 from app.services.retrieval_service import HybridRetriever
+from app.utils.logging_config import log_timing
 
 
 RELEVANCE_THRESHOLD = 0.05
+RRF_THEORETICAL_MAX = 2.0 / (60 + 1)  # 双列表 top-1 理论最大 RRF ≈ 0.0328
+ABSOLUTE_MIN_SCORE = 0.8 / (60 + 10)  # 单列表 rank-10 RRF ≈ 0.0114
 
 
 class QAService:
@@ -21,6 +24,10 @@ class QAService:
     def _filter_and_rank(self, results: list) -> list:
         if not results:
             return []
+
+        max_rrf = max(r.get("score", 0) for r in results)
+        if max_rrf < ABSOLUTE_MIN_SCORE:
+            return []  # 所有结果相关性极低，直接返回空
 
         max_score = max(r.get("score", 0) for r in results)
         if max_score <= 0:
@@ -35,6 +42,7 @@ class QAService:
 
         return filtered[:10]
 
+    @log_timing("问答(含检索+LLM)")
     def ask(self, collection_id: int, query: str, conversation_id: Optional[int] = None, top_k: int = 10) -> dict:
         collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
         if not collection:
@@ -92,7 +100,7 @@ class QAService:
                 "document_id": r.get("document_id", 0),
                 "collection_id": r.get("collection_id", collection_id),
                 "score": r.get("score", 0),
-                "relevance_pct": round(r.get("score", 0) / max_score * 100) if max_score > 0 else 0,
+                "relevance_pct": round(min(r.get("score", 0) / RRF_THEORETICAL_MAX, 1.0) * 100) if RRF_THEORETICAL_MAX > 0 else 0,
             }
             for i, r in enumerate(display_sources)
         ], ensure_ascii=False)

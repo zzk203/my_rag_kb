@@ -15,12 +15,14 @@ from app.services.llm_service import LLMFactory
 from app.services.parser_service import DoclingParser, ParsedChunk
 from app.services.retrieval_service import invalidate_bm25_cache, invalidate_vectorstore_cache
 from app.services.splitter_service import TextSplitter
+from app.utils.logging_config import log_timing
 
 
 class IndexingService:
     def __init__(self):
         self.splitter = TextSplitter()
 
+    @log_timing("文档索引")
     def index_document(self, db: Session, collection: Collection, doc: DocumentModel, file_path: str):
         doc.status = "processing"
         db.commit()
@@ -91,6 +93,7 @@ class IndexingService:
             logging.exception("索引文档失败 doc_id=%s", doc.id)
             db.commit()
 
+    @log_timing("删除文档向量")
     def delete_document_vectors(self, db: Session, collection: Collection, document_id: int):
         try:
             embeddings = LLMFactory.create_embeddings(

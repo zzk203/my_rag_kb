@@ -17,6 +17,7 @@ from app.services.indexing_service import IndexingService
 from app.services.parser_service import compute_file_hash, save_upload_file, DoclingParser
 from app.models.chunk import Chunk as ChunkModel
 from app.tasks.index_task import schedule_indexing
+from app.utils.logging_config import log_timing
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -26,6 +27,7 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 @router.post("/upload/{collection_id}", response_model=DocumentOut, status_code=201)
+@log_timing("文件上传")
 async def upload_document(
     collection_id: int,
     file: UploadFile = File(..., max_size=MAX_FILE_SIZE),  # FastAPI 会自动拒绝超过 MAX_FILE_SIZE 的文件

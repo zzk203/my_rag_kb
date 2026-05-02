@@ -1,3 +1,5 @@
+import math
+
 import json
 import re
 from typing import Any, Dict, List, Optional
@@ -11,6 +13,7 @@ from app.models.chunk import Chunk as ChunkModel
 from app.models.collection import Collection
 from app.models.document import Document as DocumentModel
 from app.services.llm_service import LLMFactory
+from app.utils.logging_config import log_timing
 
 try:
     import jieba
@@ -95,6 +98,7 @@ class HybridRetriever:
         else:
             return self._rrf_merge(vector_results, keyword_results, top_k=top_k)
 
+    @log_timing("向量检索")
     def _vector_search(
         self,
         query: str,
@@ -135,7 +139,7 @@ class HybridRetriever:
                 "id": chunk_index,
                 "content": content,
                 "highlight_content": highlight_text(content, query),
-                "score": float(score),
+                "score": 1.0 - float(score) / math.sqrt(2),  # l2 距离 → [0,1] 相似度
                 "document_id": did,
                 "filename": filenames.get(did, ""),
                 "page_number": doc.metadata.get("page_number"),
@@ -163,6 +167,7 @@ class HybridRetriever:
 
         return results
 
+    @log_timing("BM25关键词检索")
     def _get_bm25(self, collection_id: int):
         if collection_id in _bm25_cache:
             return _bm25_cache[collection_id], _bm25_docs[collection_id]
@@ -208,6 +213,7 @@ class HybridRetriever:
 
         return bm25, docs
 
+    @log_timing("RRF融合")
     def _rrf_merge(self, vector_results: List[dict], keyword_results: List[dict], top_k: int, k: int = 60) -> List[dict]:
         scores: Dict[int, float] = {}
         items: Dict[int, dict] = {}
@@ -223,6 +229,8 @@ class HybridRetriever:
             items[cid] = r
 
         sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
+        for cid in sorted_ids:
+            items[cid]["score"] = round(scores[cid], 6)
         results = [items[cid] for cid in sorted_ids]
         return results[:top_k]
 
