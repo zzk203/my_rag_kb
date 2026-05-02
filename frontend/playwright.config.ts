@@ -2,8 +2,9 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 30000,
+  timeout: 60000,
   retries: 1,
+  fullyParallel: false,
   use: {
     baseURL: 'http://localhost:3000',
     screenshot: 'only-on-failure',
@@ -16,7 +17,7 @@ export default defineConfig({
              + 'rm -f data/knowledge.db && '
              + 'DEBUG=true uvicorn app.main:app --port 8000',
       port: 8000,
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       cwd: '../backend',
     },
     {

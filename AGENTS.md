@@ -78,6 +78,22 @@ npm run test:e2e:report                     # 查看 HTML 报告（含截图/视
 - 覆盖：知识库 CRUD、文档上传（非法类型/重复检测）、搜索验证、对话问答、来源跳转高亮。
 - fixtures.ts 自动在 `tests/test-files/` 创建测试用文件。
 
+#### E2E 测试编写原则
+
+**写选择器前必须先读组件源码**，而不是凭猜测试错。例如 `FileUpload.tsx` 中 "上传" 按钮是 Ant Design `<Button type="primary">上传</Button>`，理解了组件的 props（`loading`、`disabled`）和触发逻辑（`handleUpload`）后再写选择器。
+
+具体注意事项：
+
+| 问题 | 说明 |
+|------|------|
+| **Ant Design 5 中文按钮文本带空格** | `Button` 的子文本 "上传" 在 DOM 中变为 "上 传"（双汉字自动插入空格）。不要用 `button:has-text("上传")`，用 `button.ant-btn-primary` 或 `getByRole('button', { name: /上/ })` |
+| **FileUpload 两步操作** | 组件有两个独立按钮："选择文件"（打开文件对话框）+ "上传"（`handleUpload` 发 API）。`page.locator('input[type="file"]').setInputFiles()` 只模拟选文件，**不会自动上传**，必须再点 "上传" 按钮 |
+| **`text=` 选择器 strict mode** | 侧边栏 Select 的已选值和 CollectionPage 卡片都包含 KB 名称文本，`page.locator(\`text=${name}\`)` 会匹配 2 个元素触发 strict mode 违规。用 `.ant-card:has-text("${name}")` 限定范围 |
+| **页面状态不会自动刷新** | 文档索引是异步后台任务，`upload` API 返回后索引可能还在进行中。等 `text=ready` 之前先 `page.reload()` + `waitForLoadState('networkidle')` |
+| **后端 `reuseExistingServer: false`** | 每次测试 run 必须重启后端（`rm -f knowledge.db` 配合 fresh uvicorn），否则 DB 被删但旧进程还在用失效的 SQLite 连接池，导致 500 |
+
+**调试技巧**：当选择器找不到元素时，用 `page.content()` dump 完整 HTML 搜索目标文本，或循环 `page.locator('button').all()` 打印所有按钮的 `textContent()`。
+
 ## 性能与缓存
 
 - **BM25 缓存**：`retrieval_service.py` 模块级全局字典（`_bm25_cache` / `_bm25_docs`），首次检索时构建，后续复用。索引/删除时通过 `invalidate_bm25_cache(collection_id)` 刷新。

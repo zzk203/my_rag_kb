@@ -19,6 +19,10 @@ class SearchResultItem(BaseModel):
     filename: str
     page_number: Optional[int] = None
     highlight_content: str = ""
+    source_index: Optional[int] = None
+    id: Optional[int] = None
+    relevance_pct: Optional[int] = None
+    collection_id: Optional[int] = None
 
 
 class SearchResponse(BaseModel):

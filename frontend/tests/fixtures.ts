@@ -1,4 +1,4 @@
-import { test as base, expect } from '@playwright/test'
+import { test as base, expect, type Page } from '@playwright/test'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -26,6 +26,24 @@ if (!fs.existsSync(sampleMd)) {
 const illegalExe = path.join(UPLOAD_DIR, 'test.exe')
 if (!fs.existsSync(illegalExe)) {
   fs.writeFileSync(illegalExe, 'fake exe content')
+}
+
+// 侧边栏中选择知识库
+export async function selectKnowledgeBase(page: Page, kbName: string) {
+  // 点击侧边栏 Select 打开下拉菜单
+  await page.locator('.ant-select').first().click()
+  await page.waitForTimeout(500)
+  // 精确选中下拉选项（不是已选中值）
+  const option = page.locator(`.ant-select-item-option[title="${kbName}"]`)
+  await option.waitFor({ state: 'visible', timeout: 5000 })
+  await option.click()
+  await page.waitForTimeout(500)
+}
+
+// 侧边栏导航到指定菜单
+export async function navigateViaSidebar(page: Page, menuLabel: string, targetPath: string) {
+  await page.locator(`.ant-menu-item:has-text("${menuLabel}")`).click()
+  await page.waitForURL(`**${targetPath}`, { timeout: 5000 })
 }
 
 export const test = base.extend({

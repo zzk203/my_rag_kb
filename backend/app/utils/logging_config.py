@@ -21,7 +21,7 @@ def setup_logging(debug: bool = False):
 
 
 def log_timing(operation: str):
-    """装饰器：记录函数执行耗时，仅 DEBUG 级别输出。同时支持同步和异步函数"""
+    """装饰器：记录函数执行耗时，warn级别。同时支持同步和异步函数"""
 
     def decorator(func: Callable):
         if asyncio.iscoroutinefunction(func):
