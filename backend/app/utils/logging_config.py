@@ -32,10 +32,10 @@ def log_timing(operation: str):
                 start = time.perf_counter()
                 try:
                     result = await func(*args, **kwargs)
-                    logger.debug("[PERF] %s: %.3fs", operation, time.perf_counter() - start)
+                    logger.warning("[PERF] %s: %.3fs", operation, time.perf_counter() - start)
                     return result
                 except Exception:
-                    logger.debug("[PERF] %s: %.3fs (failed)", operation, time.perf_counter() - start)
+                    logger.warning("[PERF] %s: %.3fs (failed)", operation, time.perf_counter() - start)
                     raise
 
             return async_wrapper
@@ -47,10 +47,10 @@ def log_timing(operation: str):
                 start = time.perf_counter()
                 try:
                     result = func(*args, **kwargs)
-                    logger.debug("[PERF] %s: %.3fs", operation, time.perf_counter() - start)
+                    logger.warning("[PERF] %s: %.3fs", operation, time.perf_counter() - start)
                     return result
                 except Exception:
-                    logger.debug("[PERF] %s: %.3fs (failed)", operation, time.perf_counter() - start)
+                    logger.warning("[PERF] %s: %.3fs (failed)", operation, time.perf_counter() - start)
                     raise
 
             return wrapper
