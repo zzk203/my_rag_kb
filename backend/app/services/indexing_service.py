@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import List, Optional
 
@@ -12,6 +13,7 @@ from app.models.collection import Collection
 from app.models.document import Document as DocumentModel
 from app.services.llm_service import LLMFactory
 from app.services.parser_service import DoclingParser, ParsedChunk
+from app.services.retrieval_service import invalidate_bm25_cache, invalidate_vectorstore_cache
 from app.services.splitter_service import TextSplitter
 
 
@@ -79,11 +81,14 @@ class IndexingService:
             doc.status = "ready"
             doc.chunk_count = len(chunk_records)
             db.commit()
+            invalidate_bm25_cache(collection.id)
+            invalidate_vectorstore_cache(collection.id)
 
         except Exception as e:
             db.rollback()
             doc.status = "error"
-            doc.error_message = str(e)
+            doc.error_message = "文档处理失败，请检查文件格式或稍后重试"
+            logging.exception("索引文档失败 doc_id=%s", doc.id)
             db.commit()
 
     def delete_document_vectors(self, db: Session, collection: Collection, document_id: int):
@@ -108,6 +113,8 @@ class IndexingService:
 
             db.query(ChunkModel).filter(ChunkModel.document_id == document_id).delete()
             db.commit()
+            invalidate_bm25_cache(collection.id)
+            invalidate_vectorstore_cache(collection.id)
 
         except Exception as e:
             db.rollback()
@@ -138,6 +145,8 @@ class IndexingService:
                 dir_path = os.path.join(settings.vector_store_dir, entry)
                 if os.path.isdir(dir_path) and entry not in active_segments:
                     shutil.rmtree(dir_path, ignore_errors=True)
+            invalidate_bm25_cache(collection.id)
+            invalidate_vectorstore_cache(collection.id)
         except Exception:
             pass
 

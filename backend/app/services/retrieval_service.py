@@ -12,6 +12,52 @@ from app.models.collection import Collection
 from app.models.document import Document as DocumentModel
 from app.services.llm_service import LLMFactory
 
+try:
+    import jieba
+    _has_jieba = True
+except ImportError:
+    _has_jieba = False
+
+
+def _tokenize(text: str) -> List[str]:
+    if _has_jieba:
+        return [t for t in jieba.cut(text) if t.strip()]
+    return text.split()
+
+_bm25_cache: Dict[int, BM25Okapi] = {}
+_bm25_docs: Dict[int, List[dict]] = {}
+_vectorstore_cache: Dict[int, Chroma] = {}
+
+
+def invalidate_bm25_cache(collection_id: int):
+    _bm25_cache.pop(collection_id, None)
+    _bm25_docs.pop(collection_id, None)
+
+
+def invalidate_vectorstore_cache(collection_id: int):
+    _vectorstore_cache.pop(collection_id, None)
+
+
+def _get_cached_vectorstore(collection: Collection) -> Chroma:
+    if collection.id not in _vectorstore_cache:
+        embeddings = LLMFactory.create_embeddings(
+            collection.embedding_provider or collection.provider,
+            collection.embedding_model,
+            api_key=collection.embedding_api_key or settings.embedding_api_key or collection.api_key,
+            base_url=collection.embedding_base_url or settings.embedding_base_url or collection.base_url,
+        )
+        _vectorstore_cache[collection.id] = Chroma(
+            collection_name=f"collection_{collection.id}",
+            embedding_function=embeddings,
+            persist_directory=settings.vector_store_dir,
+        )
+    return _vectorstore_cache[collection.id]
+
+
+def invalidate_bm25_cache(collection_id: int):
+    _bm25_cache.pop(collection_id, None)
+    _bm25_docs.pop(collection_id, None)
+
 
 def highlight_text(text: str, query: str) -> str:
     terms = query.strip().split()
@@ -24,8 +70,6 @@ def highlight_text(text: str, query: str) -> str:
 class HybridRetriever:
     def __init__(self, db: Session):
         self.db = db
-        self._bm25_cache: Dict[int, BM25Okapi] = {}
-        self._bm25_docs: Dict[int, List[dict]] = {}
 
     def search(
         self,
@@ -58,17 +102,7 @@ class HybridRetriever:
         top_k: int,
         filters: Optional[Dict[str, Any]] = None,
     ) -> List[dict]:
-        embeddings = LLMFactory.create_embeddings(
-            collection.embedding_provider or collection.provider,
-            collection.embedding_model,
-            api_key=collection.embedding_api_key or settings.embedding_api_key or collection.api_key,
-            base_url=collection.embedding_base_url or settings.embedding_base_url or collection.base_url,
-        )
-        vectorstore = Chroma(
-            collection_name=f"collection_{collection.id}",
-            embedding_function=embeddings,
-            persist_directory=settings.vector_store_dir,
-        )
+        vectorstore = _get_cached_vectorstore(collection)
 
         chroma_filter = None
         if filters:
@@ -114,7 +148,7 @@ class HybridRetriever:
         if bm25 is None or not docs:
             return []
 
-        tokenized_query = query.split()
+        tokenized_query = _tokenize(query)
         scores = bm25.get_scores(tokenized_query)
         top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
 
@@ -130,8 +164,8 @@ class HybridRetriever:
         return results
 
     def _get_bm25(self, collection_id: int):
-        if collection_id in self._bm25_cache:
-            return self._bm25_cache[collection_id], self._bm25_docs[collection_id]
+        if collection_id in _bm25_cache:
+            return _bm25_cache[collection_id], _bm25_docs[collection_id]
 
         chunks = (
             self.db.query(ChunkModel)
@@ -166,17 +200,13 @@ class HybridRetriever:
                 "chunk_index": c.chunk_index,
             })
 
-        tokenized_corpus = [d["content"].split() for d in docs]
+        tokenized_corpus = [_tokenize(d["content"]) for d in docs]
         bm25 = BM25Okapi(tokenized_corpus)
 
-        self._bm25_cache[collection_id] = bm25
-        self._bm25_docs[collection_id] = docs
+        _bm25_cache[collection_id] = bm25
+        _bm25_docs[collection_id] = docs
 
         return bm25, docs
-
-    def invalidate_bm25_cache(self, collection_id: int):
-        self._bm25_cache.pop(collection_id, None)
-        self._bm25_docs.pop(collection_id, None)
 
     def _rrf_merge(self, vector_results: List[dict], keyword_results: List[dict], top_k: int, k: int = 60) -> List[dict]:
         scores: Dict[int, float] = {}

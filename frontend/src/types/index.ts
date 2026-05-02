@@ -3,13 +3,13 @@ export interface Collection {
   name: string
   description: string
   provider: string
-  api_key?: string | null
-  base_url?: string | null
   embedding_provider?: string | null
-  embedding_api_key?: string | null
-  embedding_base_url?: string | null
   llm_model: string
   embedding_model: string
+  has_custom_key: boolean
+  has_embedding_key: boolean
+  max_history: number
+  ocr_enabled: boolean
   created_at: string
   updated_at: string
 }

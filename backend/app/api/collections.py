@@ -12,6 +12,7 @@ from app.models.chunk import Chunk
 from app.schemas.collection import CollectionCreate, CollectionOut, CollectionStats, CollectionUpdate
 from app.config import settings
 from app.services.indexing_service import IndexingService
+from app.utils.url_validator import validate_base_url
 
 indexing_service = IndexingService()
 
@@ -25,6 +26,13 @@ def list_collections(db: Session = Depends(get_db)):
 
 @router.post("", response_model=CollectionOut, status_code=201)
 def create_collection(data: CollectionCreate, db: Session = Depends(get_db)):
+    if not validate_base_url(data.base_url):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="不允许的 base_url")
+    if not validate_base_url(data.embedding_base_url):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="不允许的 embedding_base_url")
+
     values = data.model_dump()
     values["provider"] = values.get("provider") or "openai"
     if not values.get("llm_model"):
@@ -53,6 +61,14 @@ def update_collection(collection_id: int, data: CollectionUpdate, db: Session = 
     if not collection:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Collection not found")
+
+    if not validate_base_url(data.base_url):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="不允许的 base_url")
+    if not validate_base_url(data.embedding_base_url):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="不允许的 embedding_base_url")
+
     for key, val in data.model_dump(exclude_unset=True).items():
         if val is None or val == "":
             continue
@@ -83,8 +99,8 @@ def delete_collection(collection_id: int, db: Session = Depends(get_db)):
         pass
 
     conv_ids = [c.id for c in db.query(Conversation).filter(Conversation.collection_id == collection_id).all()]
-    for cid in conv_ids:
-        db.query(Message).filter(Message.conversation_id == cid).delete(synchronize_session=False)
+    if conv_ids:
+        db.query(Message).filter(Message.conversation_id.in_(conv_ids)).delete(synchronize_session=False)
     db.query(Conversation).filter(Conversation.collection_id == collection_id).delete(synchronize_session=False)
 
     db.query(Chunk).filter(Chunk.document_id.in_([d.id for d in docs])).delete(synchronize_session=False)

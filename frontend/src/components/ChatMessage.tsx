@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Typography, Collapse, Tag, Space } from 'antd'
 import { UserOutlined, RobotOutlined, LinkOutlined } from '@ant-design/icons'
@@ -20,16 +20,18 @@ const ThinkingDots: React.FC = () => {
   return <span style={{ fontSize: 20, letterSpacing: 2 }}>{dots}</span>
 }
 
-const ChatMessage: React.FC<Props> = ({ message }) => {
+const ChatMessage: React.FC<Props> = React.memo(({ message }) => {
   const navigate = useNavigate()
   const isUser = message.role === 'user'
 
-  let sources: SearchResult[] = []
-  if (message.sources_json) {
+  const sources: SearchResult[] = useMemo(() => {
+    if (!message.sources_json) return []
     try {
-      sources = JSON.parse(message.sources_json)
-    } catch { /* ignore */ }
-  }
+      return JSON.parse(message.sources_json)
+    } catch {
+      return []
+    }
+  }, [message.sources_json])
 
   return (
     <div style={{ display: 'flex', gap: 12, marginBottom: 20, padding: '0 20px' }}>
@@ -110,8 +112,12 @@ const ChatMessage: React.FC<Props> = ({ message }) => {
           />
         )}
       </div>
-    </div>
+      </div>
   )
-}
+}, (prev, next) =>
+  prev.message.id === next.message.id &&
+  prev.message.content === next.message.content &&
+  prev.message.sources_json === next.message.sources_json
+)
 
 export default ChatMessage

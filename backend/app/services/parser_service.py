@@ -1,10 +1,40 @@
 import hashlib
 import os
+import threading
 import uuid
 from pathlib import Path
 from typing import List, Optional
 
 from app.config import settings
+
+_docling_converter_lock = threading.Lock()
+_docling_converter = None
+
+_easyocr_reader_lock = threading.Lock()
+_easyocr_reader = None
+
+
+def _get_docling_converter():
+    global _docling_converter
+    if _docling_converter is None:
+        with _docling_converter_lock:
+            if _docling_converter is None:
+                try:
+                    from docling.document_converter import DocumentConverter
+                    _docling_converter = DocumentConverter()
+                except ImportError:
+                    _docling_converter = False
+    return _docling_converter if _docling_converter is not False else None
+
+
+def _get_easyocr_reader():
+    global _easyocr_reader
+    if _easyocr_reader is None:
+        with _easyocr_reader_lock:
+            if _easyocr_reader is None:
+                import easyocr
+                _easyocr_reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
+    return _easyocr_reader
 
 
 class ParsedChunk:
@@ -19,17 +49,7 @@ class DoclingParser:
     SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".pptx", ".md", ".txt", ".html", ".htm", ".png", ".jpg", ".jpeg"}
 
     def __init__(self, ocr_enabled: bool = False):
-        self._docling_converter = None
         self.ocr_enabled = ocr_enabled
-
-    def _get_converter(self):
-        if self._docling_converter is None:
-            try:
-                from docling.document_converter import DocumentConverter
-                self._docling_converter = DocumentConverter()
-            except ImportError:
-                self._docling_converter = False
-        return self._docling_converter
 
     def parse(self, file_path: str) -> List[ParsedChunk]:
         ext = Path(file_path).suffix.lower()
@@ -39,17 +59,19 @@ class DoclingParser:
             if ocr_result and ocr_result[0].content and not ocr_result[0].content.startswith("[Image"):
                 return ocr_result
 
-        converter = self._get_converter()
+        converter = _get_docling_converter()
         if converter:
             try:
-                return self._parse_with_docling(file_path)
+                return self._parse_with_docling(file_path, converter)
             except Exception:
                 pass
 
         return self._parse_basic(file_path, ext)
 
-    def _parse_with_docling(self, file_path: str) -> List[ParsedChunk]:
-        result = self._docling_converter.convert(file_path)
+    def _parse_with_docling(self, file_path: str, converter=None) -> List[ParsedChunk]:
+        if converter is None:
+            converter = _get_docling_converter()
+        result = converter.convert(file_path)
         text = result.document.export_to_markdown()
         return [ParsedChunk(content=text, metadata={"source": "docling"})]
 
@@ -71,8 +93,7 @@ class DoclingParser:
 
     def _parse_image(self, file_path: str) -> List[ParsedChunk]:
         try:
-            import easyocr
-            reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
+            reader = _get_easyocr_reader()
             result = reader.readtext(file_path, detail=0)
             text = "\n".join(result)
             if text.strip():

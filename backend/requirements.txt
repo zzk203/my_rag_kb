@@ -26,5 +26,8 @@ pysqlite3-binary>=0.5.0
 # OCR —— 仅在使用 ocr_enabled=True 时需要，启动时会下载模型
 easyocr>=1.7.0
 
+# 中文分词 —— BM25 关键词检索使用
+jieba>=0.42
+
 python-dotenv>=1.0.0
 aiofiles>=23.0.0

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Table,
@@ -213,13 +213,16 @@ const DocumentPage: React.FC = () => {
     },
   ]
 
-  const displayDocs = highlightDocId && docs.length > 0
-    ? [...docs].sort((a, b) => {
-        if (a.id === highlightDocId) return -1
-        if (b.id === highlightDocId) return 1
-        return 0
-      })
-    : docs
+  const displayDocs = useMemo(() =>
+    highlightDocId && docs.length > 0
+      ? [...docs].sort((a, b) => {
+          if (a.id === highlightDocId) return -1
+          if (b.id === highlightDocId) return 1
+          return 0
+        })
+      : docs,
+    [docs, highlightDocId]
+  )
 
   return (
     <div style={{ padding: 24 }}>

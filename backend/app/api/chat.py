@@ -29,7 +29,7 @@ def chat(data: ChatRequest, db: Session = Depends(get_db)):
         )
     except ValueError as e:
         from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="知识库或对话不存在")
 
 
 @router.get("/conversations", response_model=List[ConversationOut])

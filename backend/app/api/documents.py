@@ -1,4 +1,5 @@
 import mimetypes
+from pathlib import Path
 from typing import List, Optional
 
 import os
@@ -13,7 +14,7 @@ from app.models.collection import Collection
 from app.models.document import Document
 from app.schemas.document import ChunkOut, DocumentOut, DocumentUpdate
 from app.services.indexing_service import IndexingService
-from app.services.parser_service import compute_file_hash, save_upload_file
+from app.services.parser_service import compute_file_hash, save_upload_file, DoclingParser
 from app.models.chunk import Chunk as ChunkModel
 from app.tasks.index_task import schedule_indexing
 
@@ -21,11 +22,13 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 indexing_service = IndexingService()
 
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
 
 @router.post("/upload/{collection_id}", response_model=DocumentOut, status_code=201)
 async def upload_document(
     collection_id: int,
-    file: UploadFile = File(...),
+    file: UploadFile = File(..., max_size=MAX_FILE_SIZE),  # FastAPI 会自动拒绝超过 MAX_FILE_SIZE 的文件
     tags: str = Form("[]"),
     background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
@@ -34,6 +37,11 @@ async def upload_document(
     if not collection:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Collection not found")
+
+    ext = Path(file.filename).suffix.lower()
+    if ext not in DoclingParser.SUPPORTED_EXTENSIONS:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"不支持的文件类型: {ext}")
 
     file_bytes = await file.read()
     file_hash = compute_file_hash(file_bytes)

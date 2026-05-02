@@ -49,11 +49,13 @@ const CollectionPage: React.FC = () => {
     setCollections(data)
     loadCollections()
     const statsMap: Record<number, CollectionStats> = {}
-    for (const c of data) {
-      try {
-        statsMap[c.id] = await getCollectionStats(c.id)
-      } catch { /* ignore */ }
-    }
+    await Promise.all(
+      data.map(async (c) => {
+        try {
+          statsMap[c.id] = await getCollectionStats(c.id)
+        } catch { /* ignore */ }
+      })
+    )
     setStats(statsMap)
   }
 

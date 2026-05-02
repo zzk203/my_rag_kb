@@ -1,14 +1,14 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SearchRequest(BaseModel):
-    query: str
+    query: str = Field(..., min_length=1, max_length=5000)
     collection_id: int
-    top_k: int = 5
+    top_k: int = Field(default=5, ge=1, le=50)
     filters: Optional[Dict[str, Any]] = None
-    search_type: str = "hybrid"
+    search_type: Literal["hybrid", "vector", "keyword"] = "hybrid"
 
 
 class SearchResultItem(BaseModel):
